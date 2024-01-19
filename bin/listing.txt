@@ -1,0 +1,2529 @@
+==> ../arch.go <==
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func main() {
+	fmt.Println(runtime.GOARCH)
+}
+
+==> ../cat.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	isNumeric := flag.Bool("n", false, "Нумеровать все строки при выводе")
+	isNonEmptyNumeric := flag.Bool("b", false, "Нумеровать непустые строки при выводе")
+	isShowEnd := flag.Bool("E", false, "Показыватьь $  в конце каждой строки")
+
+	flag.Parse()
+
+	files := flag.Args()
+
+	var countLine int64 = 0
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("cat: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if *isNonEmptyNumeric {
+				if strings.TrimSpace(line) != "" {
+					countLine++
+					line = fmt.Sprintf("%6s  %s", strconv.FormatInt(countLine, 10), line)
+				}
+			} else if *isNumeric {
+				countLine++
+				line = fmt.Sprintf("%6s  %s", strconv.FormatInt(countLine, 10), line)
+			}
+			if *isShowEnd {
+				line = line + "$"
+			}
+			fmt.Println(line)
+		}
+	}
+}
+
+==> ../cd.go <==
+package main
+
+/*
+#include <unistd.h>
+*/
+import "C"
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+)
+
+func main() {
+	flag.Bool("L", false, "Принудительно следовать символьным ссылкам")
+	flag.Bool("P", false, "Использовать физическую структуру каталогов, не следуя символическим ссылкам")
+
+	flag.Parse()
+
+	var directory string
+	//если аргументы отсутствуют, перейти в домашний каталог пользователя
+	countArgs := len(flag.Args())
+	if len(flag.Args()) == 1 {
+		directory = flag.Arg(0)
+	}
+	if countArgs == 0 {
+		directory, _ = os.UserHomeDir()
+	}
+	if countArgs > 1 {
+		fmt.Println("cd: too many arguments")
+		return
+	}
+
+	//Поменяем текущий католог с помощью С
+	_, err := C.chdir(C.CString(directory))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//Получаем переменную окружения SHELL и запускаем оболочку
+	shell := os.Getenv("SHELL")
+	cmd := exec.Command(shell)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+==> ../clear.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+)
+
+func main() {
+	isScroll := flag.Bool("x", false, "Проскролить вместо очистки")
+	flag.Parse()
+
+	if *isScroll {
+		fmt.Print("\033[H\033[2J")
+	} else {
+		fmt.Print("\x1bc")
+	}
+
+}
+
+==> ../cp.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+)
+
+func main() {
+	isVerbose := flag.Bool("v", false, "Поясняет производимые действия")
+	isRecursive := flag.Bool("r", false, "Копирует все подкаталоги рекурсивно")
+	isForce := flag.Bool("f", false, "Игнорирует возникающие исключения")
+
+	flag.Parse()
+
+	if len(flag.Args()) < 1 {
+		fmt.Println("cp: skipped source operand")
+		return
+	} else if len(flag.Args()) < 2 {
+		fmt.Println("cp: skipped purpose operand")
+		return
+	}
+
+	args := flag.Args()
+	sources := args[:len(args)-1]
+	purpose := args[len(args)-1]
+
+	for _, source := range sources {
+		copyEntries(source, purpose, *isVerbose, *isRecursive, *isForce)
+	}
+}
+
+func getNamePath(path string) string {
+	paths := strings.Split(path, "/")
+	return ("/" + paths[len(paths)-1])
+}
+
+func copyEntries(source string, purpose string, isVerbose bool, isRecursive bool, isForce bool) {
+	info, err := os.Stat(source)
+	if err != nil && isForce == false {
+		fmt.Printf("cp: %s: %v\n", source, err)
+		return
+	}
+
+	if info.IsDir() {
+		if isRecursive == false {
+			fmt.Printf("cp: no such flag -r; skipped dir '%s'\n", source)
+			return
+		}
+
+		copyDir(source, purpose, isVerbose, isForce)
+	} else {
+		copyFile(source, purpose, isVerbose, isForce)
+	}
+}
+
+func copyDir(source string, purpose string, isVerbose bool, isForce bool) {
+	purpose += getNamePath(source)
+	os.MkdirAll(purpose, os.ModePerm)
+
+	if isVerbose {
+		fmt.Printf("'%s' -> '%s'\n", source, purpose)
+	}
+
+	dirs, err := os.ReadDir(source)
+	if err != nil && isForce == false {
+		fmt.Printf("cp: %s: %v\n", source, err)
+		return
+	}
+
+	for _, entry := range dirs {
+		copyEntries(source+"/"+entry.Name(), purpose, isVerbose, true, isForce)
+	}
+}
+
+func copyFile(source string, purpose string, isVerbose bool, isForce bool) {
+	info, err := os.Stat(purpose)
+	if err == nil && info.IsDir() {
+		purpose += getNamePath(source)
+	}
+
+	sourceFile, err := os.Open(source)
+	if err != nil && isForce == false {
+		fmt.Printf("cp: %s: %v\n", source, err)
+		return
+	}
+	defer sourceFile.Close()
+
+	purposeFile, err := os.Create(purpose)
+	if err != nil && isForce == false {
+		fmt.Printf("pcp: %s: %v\n", purpose, err)
+		return
+	}
+	defer purposeFile.Close()
+
+	_, err = io.Copy(purposeFile, sourceFile)
+	if err != nil && isForce == true {
+		fmt.Printf("cp: %v\n", err)
+	}
+	if isVerbose {
+		fmt.Printf("'%s' -> '%s'\n", source, purpose)
+	}
+}
+
+==> ../date.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"time"
+)
+
+func main() {
+	isUniversal := flag.Bool("u", false, "Выводит текущее Universal Time (UTC)")
+	isRFC := flag.Bool("R", false, "Выводит время и дату в формате RFC 3339")
+
+	flag.Parse()
+
+	currentTime := time.Now()
+	if *isUniversal {
+		currentTime = currentTime.UTC()
+	}
+
+	if *isRFC {
+		fmt.Println(currentTime.Format("Mon, _2 Jan 2006 15:04:05 -0700"))
+	} else {
+		fmt.Println(currentTime.Format("Mon Jan _2 03:04:05 PM MST 2006"))
+	}
+}
+
+==> ../df.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
+func main() {
+	humanReadable := flag.Bool("h", false, "Отображение размеров в человеко-читаемом формате")
+	inodes := flag.Bool("i", false, "Отображение информации об нодах вместо использования блоков")
+	fileSystemType := flag.String("t", "", "Ограничение списка файловых систем по указанному типу")
+
+	flag.Parse()
+
+	displayDiskFree(*humanReadable, *inodes, *fileSystemType)
+}
+
+func displayDiskFree(humanReadable, inodes bool, fileSystemType string) {
+	command := "df"
+	args := []string{"-P"} // Используем формат вывода POSIX для упрощения обработки данных
+
+	if humanReadable {
+		args = append(args, "-h")
+	}
+
+	if inodes {
+		args = append(args, "-i")
+	}
+
+	if fileSystemType != "" {
+		args = append(args, "-t", fileSystemType)
+	}
+
+	output := getFreeDisk(command, args...)
+	fmt.Println(output)
+}
+
+func getFreeDisk(command string, args ...string) string {
+	cmdOutput, err := exec.Command(command, args...).Output()
+	if err != nil {
+		return fmt.Sprintf("Ошибка выполнения команды %s: %s", command, err)
+	}
+	return strings.TrimSpace(string(cmdOutput))
+}
+
+==> ../du.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
+func main() {
+	humanReadable := flag.Bool("h", false, "Отображение размеров в человеко-читаемом формате")
+	total := flag.Bool("c", false, "Отображение итоговой информации")
+
+	flag.Parse()
+
+	displayDiskUsage(flag.Args(), *humanReadable, *total)
+}
+
+func displayDiskUsage(args []string, humanReadable bool, total bool) {
+	command := "du"
+
+	if humanReadable {
+		args = append(args, "-h")
+	}
+
+	if total {
+		args = append(args, "-c")
+	}
+
+	output := getUsageDisk(command, args...)
+	fmt.Println(output)
+}
+
+func getUsageDisk(command string, args ...string) string {
+	cmdOutput, err := exec.Command(command, args...).Output()
+	if err != nil {
+		return fmt.Sprintf("Ошибка выполнения команды %s: %s", command, err)
+	}
+	return strings.TrimSpace(string(cmdOutput))
+}
+
+==> ../exit.go <==
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"syscall"
+)
+
+// Функция exit инициирует процесс завершения программы mate-terminal
+func main() {
+	cmd := exec.Command("pidof", os.Getenv("SHELL"))
+	output, error := cmd.Output()
+	if error != nil {
+		fmt.Println(error)
+	}
+	strData := string(output)
+	str := strings.TrimSpace(strData)
+	intValue, err := strconv.Atoi(str)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// Завершение процесса mate-terminal с использованием идентификатора процесса
+	er := syscall.Kill(intValue, syscall.SIGKILL)
+	if er != nil {
+		panic(er.Error())
+	}
+}
+
+==> ../file.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"net/http"
+	"os"
+)
+
+func main() {
+	flag.Parse()
+
+	files := flag.Args()
+
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("file: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		buffer := make([]byte, 512)
+		file.Read(buffer)
+		fmt.Println(fileName + ": ", http.DetectContentType(buffer))
+	}
+
+}
+
+==> ../free.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	isByte := flag.Bool("b", false, "Показать информацию в байтах")
+	isMByte := flag.Bool("mega", false, "Показать информацию в мегабайтах")
+	isGByte := flag.Bool("giga", false, "Показать информацию в гигабайтах")
+
+	flag.Parse()
+
+	if *isByte {
+		res(1024, true)
+	} else if *isMByte {
+		res(1024, false)
+	} else if *isGByte {
+		res(1024*1024, false)
+	} else {
+		res(1, false)
+	}
+}
+
+func res(ch int, key_b bool) {
+	var memTotal int
+	var memFree int
+	var memAvailable int
+	var memBuffers int
+	var memCashed int
+	var memShared int
+	var swapTotal int
+	var swapFree int
+
+	f, e := os.Open("/proc/meminfo")
+	if e != nil {
+		panic(e)
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+
+	for s.Scan() {
+
+		if strings.Contains(s.Text(), "MemTotal") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memTotal = res
+		}
+		if strings.Contains(s.Text(), "MemFree") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memFree = res
+		}
+		if strings.Contains(s.Text(), "MemAvailable") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memAvailable = res
+		}
+		if strings.Contains(s.Text(), "Buffers") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memBuffers = res
+		}
+		if strings.Contains(s.Text(), "Cached") && strings.Contains(s.Text(), "SwapCached") == false {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memCashed = res
+		}
+		if strings.Contains(s.Text(), "Shmem:") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memShared = res
+		}
+		if strings.Contains(s.Text(), "SwapTotal") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			swapTotal = res
+		}
+		if strings.Contains(s.Text(), "SwapFree") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			swapFree = res
+		}
+	}
+	if key_b {
+		memTotal = memTotal * ch
+		memFree = memFree * ch
+		memAvailable = memAvailable * ch
+		memBuffers = memBuffers * ch
+		memCashed = memCashed * ch
+		memShared = memShared * ch
+		swapTotal = swapTotal * ch
+		swapFree = swapFree * ch
+	} else {
+		memTotal = memTotal / ch
+		memFree = memFree / ch
+		memAvailable = memAvailable / ch
+		memBuffers = memBuffers / ch
+		memCashed = memCashed / ch
+		memShared = memShared / ch
+		swapTotal = swapTotal / ch
+		swapFree = swapFree / ch
+	}
+
+	fmt.Printf("        %12s%12s%12s%12s%12s%12s\n",
+		"total", "used", "free", "shared", "buff/cache", "avaliable")
+	fmt.Printf("Mem:    %12s%12s%12s%12s%12s%12s\n",
+		strconv.Itoa(memTotal), strconv.Itoa(memTotal-memFree),
+		strconv.Itoa(memFree), strconv.Itoa(memShared),
+		strconv.Itoa(memBuffers+memCashed), strconv.Itoa(memAvailable))
+	fmt.Printf("Swap:   %12s%12s%12s%12s%12s%12s\n",
+		strconv.Itoa(swapTotal), strconv.Itoa(swapTotal-swapFree),
+		strconv.Itoa(swapFree), "", "", "")
+}
+
+==> ../head.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	CountLines := flag.Int("n", -1, "Выводит первое КОЛИЧЕСТВО строк файла")
+	CountBytes := flag.Int("c", -1, "Выводит первое КОЛИЧЕСТВО байт файла")
+	isVerbose := flag.Bool("v", false, "Выводит название(шапку) перед каждым файлом")
+
+	flag.Parse()
+	if *CountLines < 0 && *CountBytes < 0 {
+		*CountLines = 10
+	}
+
+	files := flag.Args()
+	for _, fileName := range files {
+		var output string
+
+		if *isVerbose {
+			output += fmt.Sprintf("==> %s <==\n", fileName)
+		}
+
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("head: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		if *CountLines > 0 && *CountBytes > 0 {
+			lines := scanLines(file, *CountLines)
+			bytes := scanBytes(file, *CountBytes)
+			if len(lines) >= len(bytes) {
+				output += lines
+			} else {
+				output += bytes
+			}
+		} else if *CountLines > 0 {
+			output += scanLines(file, *CountLines)
+		} else if *CountBytes > 0 {
+			output += scanBytes(file, *CountBytes)
+		}
+		fmt.Println(output)
+	}
+}
+
+func scanLines(file *os.File, lines int) string {
+	var output string
+
+	scanner := bufio.NewScanner(file)
+	for i := 0; scanner.Scan() && i < lines; i++ {
+		output += fmt.Sprintln(scanner.Text())
+	}
+
+	return output
+}
+
+func scanBytes(file *os.File, bytes int) string {
+	var output string
+
+	buffer := make([]byte, bytes)
+	byteRead, _ := file.Read(buffer)
+	output = string(buffer[:byteRead])
+
+	return output
+}
+
+==> ../history.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/user"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	clearHistory := flag.Bool("c", false, "Очистить историю команд")
+
+	flag.Parse()
+
+	if *clearHistory {
+		clearHistoryFile()
+		return
+	}
+
+==> ../ls.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	isAll := flag.Bool("a", false, "Включить скрытые флаги")
+	isLong := flag.Bool("l", false, "Показать подробную информацию")
+	isReverse := flag.Bool("r", false, "Показать в обратном порядке")
+	isHuman := flag.Bool("h", false, "Печатать размеры в удобном для еловека виде")
+
+	flag.Parse()
+
+	args := flag.Args()
+	if len(args) == 0 {
+		args = append(args, ".")
+	}
+
+	for _, arg := range args {
+
+		info, err := os.Stat(arg)
+		if err != nil {
+			fmt.Printf("%s: %v\n", arg, err)
+			continue
+		}
+		if !info.IsDir() {
+			fmt.Printf("%s: Не является директорией\n", arg)
+			continue
+		}
+
+		files, err := os.ReadDir(arg)
+		if err != nil {
+			fmt.Printf("%s: %v\n", arg, err)
+			continue
+		}
+
+		var entries []os.DirEntry
+
+		for _, file := range files {
+			if strings.HasPrefix(file.Name(), ".") && *isAll == false {
+				continue
+			}
+			entries = append(entries, file)
+		}
+
+		if len(args) > 1 {
+			fmt.Println(arg + ":")
+		}
+
+		sort.Slice(entries, func(i, j int) bool {
+			return *isReverse
+		})
+		for _, entry := range entries {
+			if len(args) > 1 {
+				fmt.Print("\t")
+			}
+			PrintFile(entry, *isLong, *isHuman)
+		}
+	}
+}
+
+func PrintFile(entry os.DirEntry, isLong bool, isHuman bool) {
+	ls := entry.Name()
+	if entry.IsDir() {
+		ls = "./" + ls
+	}
+	if isLong {
+		info, _ := entry.Info()
+		size := strconv.FormatInt(info.Size(), 10)
+		if isHuman {
+			size = strconv.FormatInt(info.Size()/1024, 10) + "MB"
+		}
+		ls = size + "\t" + info.ModTime().Format("Jan _2 03:15 ") + ls
+	}
+	fmt.Println(ls)
+}
+
+==> ../main.go <==
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+func main() {
+	var _, filename, _, _ = runtime.Caller(0)
+	var execFile, _ = filepath.Abs(filename)
+	var execPath = filepath.Dir(execFile)
+	var scanner = bufio.NewScanner(os.Stdin)
+
+	for {
+		fmt.Print(":")
+		scanner.Scan()
+		var execLine = scanner.Text()
+
+		if strings.HasPrefix(execLine, "exit") {
+			fmt.Println("GoTerminal is finished")
+			return
+		}
+
+		var args = strings.Fields(execLine)
+		var command = execPath + "/" + args[0] + ".go"
+		args = args[1:]
+
+		if _, err := os.Stat(command); os.IsNotExist(err) {
+			fmt.Println("GoTerminal: " + command + ": command is not exist")
+			continue
+		}
+
+		Execute(command, args)
+	}
+
+}
+
+func Execute(command string, args []string) {
+	var execArgs = []string{"run", command}
+	execArgs = append(execArgs, args[:]...)
+	var cmd = exec.Command("go", execArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		fmt.Println("GoTerminal: ", command, ": failed execute:\n\r\t ", err)
+	}
+
+	fmt.Println(cmd.Path)
+}
+
+==> ../mkdir.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io/fs"
+	"os"
+	"strings"
+)
+
+func main() {
+	isParent := flag.Bool("p", false, "Создавать родительские подкотологи если они отсутствуют")
+	isVerbose := flag.Bool("v", false, "Выводить информацию при создании каталогов")
+
+	flag.Parse()
+
+	directories := flag.Args()
+	if len(directories) == 0 {
+		fmt.Println("mkdir: missing operand")
+		return
+	}
+
+	for _, dir := range directories {
+		make(dir, *isParent, *isVerbose)
+	}
+}
+
+func make(dir string, isParent bool, isVerbose bool) {
+	var err error
+
+	if index := strings.LastIndex(dir, "/"); index != -1 {
+		parent := dir[:index]
+		if isParent && err == nil {
+			make(parent, isParent, isVerbose)
+		}
+	}
+
+	err = os.Mkdir(dir, fs.ModePerm)
+
+	if err != nil {
+		fmt.Printf("mkdir: cannot create directory %s: %v\n", dir, err)
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("mkdir: created directory '%s'\n", dir)
+	}
+
+}
+
+==> ../nl.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	flag.Parse()
+
+	files := flag.Args()
+
+	var countLine int64 = 0
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("nl: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.TrimSpace(line) != "" {
+				countLine++
+				line = fmt.Sprintf("%6s  %s", strconv.FormatInt(countLine, 10), line)
+			}
+			fmt.Println(line)
+		}
+	}
+}
+
+==> ../pwd.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	isValue := flag.Bool("L", false, "Показать значение $PWD")
+	isPhysical := flag.Bool("P", false, "Показать физическую директорию, без символических ссылок")
+
+	flag.Parse()
+
+	pwd, _ := os.Getwd()
+	if *isValue {
+		fmt.Println(pwd)
+		return
+	}
+	if *isPhysical {
+		pwd, _ = filepath.Abs(filepath.Dir("."))
+	}
+
+	fmt.Println(pwd)
+}
+
+==> ../rmdir.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	isParent := flag.Bool("p", false, "Удалять родительские подкотологи если они пусты")
+	isVerbose := flag.Bool("v", false, "Выводить информацию при удалении каталогов")
+
+	flag.Parse()
+
+	directories := flag.Args()
+	if len(directories) == 0 {
+		fmt.Println("rmdir: missing operand")
+		return
+	}
+
+	for _, dir := range directories {
+		removeDir(dir, *isParent, *isVerbose)
+	}
+}
+
+func removeDir(dir string, isParent bool, isVerbose bool) {
+	var err error
+
+	status, _ := os.Stat(dir)
+
+	if status.IsDir() == false {
+		fmt.Printf("rmdir: failed to remove %s: %s\n", dir, "not a directory")
+		return
+	}
+
+	err = os.Remove(dir)
+
+	if err != nil {
+		fmt.Printf("rmdir: failed to remove %s: %v\n", dir, err)
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("rmdir: removing directory '%s'\n", dir)
+	}
+
+	if index := strings.LastIndex(dir, "/"); index != -1 {
+		parent := dir[:index]
+		if isParent && err == nil {
+			removeDir(parent, isParent, isVerbose)
+		}
+	}
+}
+
+==> ../rm.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	isForce := flag.Bool("f", false, "Инорировать несуществующие файлы и аргументы")
+	isRecursive := flag.Bool("r", false, "Рекурсивно удалять каталоги и их содержимое")
+	isVerbose := flag.Bool("v", false, "Пояснять производимые действия")
+
+	flag.Parse()
+
+	files := flag.Args()
+
+	for _, fileName := range files {
+		remove(fileName, *isForce, *isRecursive, *isVerbose)
+	}
+}
+
+func remove(file string, isForce bool, isRecursive bool, isVerbose bool) {
+	var err error
+
+	if isRecursive {
+		dirs, _ := os.ReadDir(file)
+		for _, f := range dirs {
+			remove(file+"/"+f.Name(), isForce, isRecursive, isVerbose)
+		}
+	}
+
+	err = os.Remove(file)
+	if err != nil {
+		if isForce == false {
+			fmt.Printf("rm: failed to remove %s: %v\n", file, err)
+		}
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("rm: removing '%s'\n", file)
+	}
+}
+
+==> ../tail.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	CountLines := flag.Int("n", -1, "Выводит последнее КОЛИЧЕСТВО строк файла")
+	CountBytes := flag.Int("c", -1, "Выводит последнее КОЛИЧЕСТВО байт файла")
+	isVerbose := flag.Bool("v", false, "Выводит название(шапку) перед каждым файлом")
+
+	flag.Parse()
+	if *CountLines < 0 && *CountBytes < 0 {
+		*CountLines = 10
+	}
+
+	files := flag.Args()
+	for _, fileName := range files {
+		var output string
+
+		if *isVerbose {
+			output += fmt.Sprintf("==> %s <==\n", fileName)
+		}
+
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("tail: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		if *CountLines > 0 && *CountBytes > 0 {
+			lines := scanLines(file, *CountLines)
+			bytes := scanBytes(file, *CountBytes)
+			if len(lines) >= len(bytes) {
+				output += lines
+			} else {
+				output += bytes
+			}
+		} else if *CountLines > 0 {
+			output += scanLines(file, *CountLines)
+		} else if *CountBytes > 0 {
+			output += scanBytes(file, *CountBytes)
+		}
+		fmt.Println(output)
+	}
+}
+
+func scanLines(file *os.File, lines int) string {
+	var output string
+
+	counter := bufio.NewScanner(file)
+	countLines := 0
+	for counter.Scan() {
+		countLines++
+	}
+
+	scanner := bufio.NewScanner(file)
+	for i := 0; scanner.Scan() && i < countLines-lines; i++ {
+		scanner.Text()
+	}
+	for scanner.Scan() {
+		output += fmt.Sprintln(scanner.Text())
+	}
+
+	return output
+}
+
+func scanBytes(file *os.File, bytes int) string {
+	var output string
+
+	info, _ := file.Stat()
+	size := info.Size()
+
+	buffer := make([]byte, bytes)
+	byteRead, _ := file.ReadAt(buffer, size-int64(bytes))
+	output = string(buffer[:byteRead])
+
+	return output
+}
+
+==> ../tar.go <==
+package main
+
+import (
+	"archive/tar"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	// Объявление флагов для команды tar
+	create := flag.Bool("c", false, "Создать новый архив")
+	extract := flag.Bool("x", false, "Извлечь файлы из архива")
+	archiveName := flag.String("f", "", "Имя файла архива")
+
+	flag.Parse()
+
+	// Создание нового архива
+	if *create && *archiveName != "" {
+		files := flag.Args()
+		err := createArchive(files, *archiveName)
+		if err != nil {
+			fmt.Printf("tar: %s: %v\n", *archiveName, err)
+		} else {
+			fmt.Println("tar: arhive created:", *archiveName)
+		}
+	}
+
+	// Извлечение файлов из архива
+	if *extract && *archiveName != "" {
+		err := extractArchive(*archiveName)
+		if err != nil {
+			fmt.Printf("tar: %s: %v\n", *archiveName, err)
+		} else {
+			fmt.Println("tar: arhive is dearhivate:", *archiveName)
+		}
+	}
+}
+
+// Создание нового архива
+func createArchive(files []string, archiveName string) error {
+	archiveFile, err := os.Create(archiveName)
+	if err != nil {
+		return err
+	}
+	defer archiveFile.Close()
+
+	tw := tar.NewWriter(archiveFile)
+	defer tw.Close()
+
+	for _, file := range files {
+		err := filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			header, err := tar.FileInfoHeader(info, info.Name())
+			if err != nil {
+				return err
+			}
+
+			header.Name = path
+
+			if err := tw.WriteHeader(header); err != nil {
+				return err
+			}
+
+			if !info.Mode().IsDir() {
+				fileToArchive, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				defer fileToArchive.Close()
+
+				if _, err := io.Copy(tw, fileToArchive); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Извлечение файлов из архива
+func extractArchive(archiveName string) error {
+	archiveFile, err := os.Open(archiveName)
+	if err != nil {
+		return err
+	}
+	defer archiveFile.Close()
+
+	tr := tar.NewReader(archiveFile)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Printf("tar: dearhivate... %s\n", header.Name)
+
+		targetFilePath := filepath.Join(".", header.Name)
+		if header.Typeflag == tar.TypeDir {
+			if err := os.MkdirAll(targetFilePath, 0755); err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Создание файла и копирование данных
+		fileToExtract, err := os.Create(targetFilePath)
+		if err != nil {
+			return err
+		}
+		defer fileToExtract.Close()
+
+		if _, err := io.Copy(fileToExtract, tr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+==> ../touch.go <==
+package main
+
+import (
+	"errors"
+	"flag"
+	"os"
+	"time"
+)
+
+func main() {
+	isNoCreated := flag.Bool("c", false, "Не создавать файлы")
+
+	flag.Parse()
+
+	files := flag.Args()
+
+	for _, fileName := range files {
+		err := os.Chtimes(fileName, time.Now(), time.Now())
+
+		if errors.Is(err, os.ErrNotExist) && *isNoCreated == false {
+			os.Create(fileName)
+		}
+
+	}
+}
+
+==> ../uname.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"syscall"
+)
+
+func main() {
+	isAll := flag.Bool("a", false, "Вся информация")
+	isNName := flag.Bool("n", false, "Имя ядра")
+	isSName := flag.Bool("s", false, "Имя пк в сети")
+	isKRelease := flag.Bool("r", false, "Релиз ядра")
+
+	flag.Parse()
+
+	if !*isAll && !*isNName && !*isSName && !*isKRelease {
+		*isSName = true
+	}
+
+	var name syscall.Utsname
+	syscall.Uname(&name)
+
+	if *isSName || *isAll {
+		fmt.Print(bytesToString(name.Sysname[:]) + " ")
+	}
+	if *isNName || *isAll {
+		fmt.Print(bytesToString(name.Nodename[:]) + " ")
+	}
+	if *isKRelease || *isAll {
+		fmt.Print(bytesToString(name.Release[:]) + " ")
+	}
+
+	fmt.Println()
+}
+
+func bytesToString(b []int8) string {
+	var s []byte
+	for _, v := range b {
+		if v == 0 {
+			break
+		}
+		s = append(s, byte(v))
+	}
+	return string(s)
+}
+
+==> ../unzip.go <==
+package main
+
+import (
+	"archive/zip"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	// Определяем флаги
+	dFlag := flag.String("d", "", "Указание каталога для извлечения файлов")
+	oFlag := flag.Bool("o", false, "Перезапись существующих файлов")
+	qFlag := flag.Bool("q", false, "Тихий режим без вывода")
+
+	flag.Parse()
+	zipFile := flag.Arg(0)
+
+	r, err := zip.OpenReader(zipFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer r.Close()
+
+	// Перебираем файлы в архиве для извлечения
+	for _, f := range r.File {
+		targetDir := *dFlag
+		if targetDir == "" {
+			targetDir, _ = os.Getwd()
+		}
+		if !filepath.IsAbs(targetDir) {
+			targetDir, _ = filepath.Abs(targetDir)
+		}
+
+		targetPath := filepath.Join(targetDir, f.Name)
+
+		if !*qFlag {
+			fmt.Println("unzip:", f.Name)
+		}
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(targetPath, os.ModePerm)
+			continue
+		}
+
+		if !*oFlag {
+			_, err := os.Stat(targetPath)
+			if err == nil {
+				var response string
+				fmt.Printf("%s is alredy exist. Overwrite? (yes/no/all): ", targetPath)
+				_, err := fmt.Scanln(&response)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				response = strings.ToLower(strings.TrimSpace(response))
+
+				if response != "yes" && response != "y" && response != "all" {
+					continue
+				} else if response == "all" {
+					*oFlag = true
+				}
+			}
+		}
+
+		// Копируем содержимое файла в целевой файл
+		fw, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fr, err := f.Open()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		_, err = io.Copy(fw, fr)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fw.Close()
+		fr.Close()
+	}
+}
+
+==> ../wc.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	linesFlag := flag.Bool("l", false, "Отображение количества строк")
+	wordsFlag := flag.Bool("w", false, "Отображение количества слов")
+	bytesFlag := flag.Bool("c", false, "Отображение количества байт")
+
+	flag.Parse()
+
+	filename := flag.Arg(0)
+
+	if filename == "" {
+		fmt.Println("wc: enter first operand, file name")
+		return
+	}
+
+	// Если не указаны ключи, установим все ключи для выполнения
+	if !*linesFlag && !*wordsFlag && !*bytesFlag {
+		*linesFlag, *wordsFlag, *bytesFlag = true, true, true
+	}
+
+	displayWordCount(*linesFlag, *wordsFlag, *bytesFlag, filename)
+}
+
+func displayWordCount(countLines, countWords, countBytes bool, filename string) {
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Printf("wc: %s: %v\n", filename, err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineCount, wordCount, byteCount := 0, 0, 0
+
+	for scanner.Scan() {
+		lineCount++
+		words := strings.Fields(scanner.Text())
+		wordCount += len(words)
+		byteCount += len(scanner.Text()) + 1
+	}
+
+	if countLines {
+		fmt.Printf("wc: count lines: %d\n", lineCount)
+	}
+
+	if countWords {
+		fmt.Printf("wc: count words: %d\n", wordCount)
+	}
+
+	if countBytes {
+		fmt.Printf("wc: count bytes: %d\n", byteCount)
+	}
+}
+
+==> ../zip.go <==
+package main
+
+import (
+	"archive/zip"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	// Определяем флаги
+	rFlag := flag.Bool("r", false, "Рекурсивное добавление файлов и каталогов")
+	nineFlag := flag.Bool("9", false, "Использовать наивысший уровень сжатия")
+	oFlag := flag.String("o", "output.zip", "Имя архива")
+
+	flag.Parse()
+	files := flag.Args()
+
+	// Создаем новый архив
+	newZipFile, err := os.Create(*oFlag)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer newZipFile.Close()
+
+	zipWriter := zip.NewWriter(newZipFile)
+	defer zipWriter.Close()
+
+	// Добавляем файлы или директории в архив
+	for _, file := range files {
+		basePath := ""
+		if *rFlag {
+			fi, err := os.Stat(file)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			if fi.IsDir() {
+				basePath = file
+			}
+		}
+
+		err = addFilesToZip(file, basePath, zipWriter, *nineFlag)
+		if err != nil {
+			fmt.Printf("zip: %s: %v\n", file, err)
+			return
+		}
+	}
+
+	fmt.Println("zip: archive created:", *oFlag)
+}
+
+// Функция для рекурсивного добавления файлов
+func addFilesToZip(file string, base string, zipWriter *zip.Writer, isNineZip bool) error {
+	info, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		files, err := os.ReadDir(file)
+		if err != nil {
+			return err
+		}
+		for _, f := range files {
+			err = addFilesToZip(filepath.Join(file, f.Name()), base, zipWriter, isNineZip)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		fileToZip, err := os.Open(file)
+		if err != nil {
+			return err
+		}
+		defer fileToZip.Close()
+
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		if isNineZip {
+			header.Method = zip.Deflate
+		}
+
+		if base != "" {
+			rel, err := filepath.Rel(base, file)
+			if err != nil {
+				return err
+			}
+			header.Name = filepath.ToSlash(rel)
+		}
+
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(writer, fileToZip)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+	user, _ := user.Current()
+
+	filePath := filepath.Join(user.HomeDir, ".bash_history")
+	file, _ := os.ReadFile(filePath)
+
+	fileContent := strings.Split(string(file), "\n")
+
+	for index, command := range fileContent {
+		if command != "" {
+			fmt.Printf("%5d  %s\n", index+1, command)
+		}
+	}
+}
+
+func clearHistoryFile() {
+	user, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	filePath := filepath.Join(user.HomeDir, ".bash_history")
+	err = os.WriteFile(filePath, []byte(""), 0644)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+}
+
+==> ../ls.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	isAll := flag.Bool("a", false, "Включить скрытые флаги")
+	isLong := flag.Bool("l", false, "Показать подробную информацию")
+	isReverse := flag.Bool("r", false, "Показать в обратном порядке")
+	isHuman := flag.Bool("h", false, "Печатать размеры в удобном для еловека виде")
+
+	flag.Parse()
+
+	args := flag.Args()
+	if len(args) == 0 {
+		args = append(args, ".")
+	}
+
+	for _, arg := range args {
+
+		info, err := os.Stat(arg)
+		if err != nil {
+			fmt.Printf("%s: %v\n", arg, err)
+			continue
+		}
+		if !info.IsDir() {
+			fmt.Printf("%s: Не является директорией\n", arg)
+			continue
+		}
+
+		files, err := os.ReadDir(arg)
+		if err != nil {
+			fmt.Printf("%s: %v\n", arg, err)
+			continue
+		}
+
+		var entries []os.DirEntry
+
+		for _, file := range files {
+			if strings.HasPrefix(file.Name(), ".") && *isAll == false {
+				continue
+			}
+			entries = append(entries, file)
+		}
+
+		if len(args) > 1 {
+			fmt.Println(arg + ":")
+		}
+
+		sort.Slice(entries, func(i, j int) bool {
+			return *isReverse
+		})
+		for _, entry := range entries {
+			if len(args) > 1 {
+				fmt.Print("\t")
+			}
+			PrintFile(entry, *isLong, *isHuman)
+		}
+	}
+}
+
+func PrintFile(entry os.DirEntry, isLong bool, isHuman bool) {
+	ls := entry.Name()
+	if entry.IsDir() {
+		ls = "./" + ls
+	}
+	if isLong {
+		info, _ := entry.Info()
+		size := strconv.FormatInt(info.Size(), 10)
+		if isHuman {
+			size = strconv.FormatInt(info.Size()/1024, 10) + "MB"
+		}
+		ls = size + "\t" + info.ModTime().Format("Jan _2 03:15 ") + ls
+	}
+	fmt.Println(ls)
+}
+
+==> ../main.go <==
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+func main() {
+	var _, filename, _, _ = runtime.Caller(0)
+	var execFile, _ = filepath.Abs(filename)
+	var execPath = filepath.Dir(execFile)
+	var scanner = bufio.NewScanner(os.Stdin)
+
+	for {
+		fmt.Print(":")
+		scanner.Scan()
+		var execLine = scanner.Text()
+
+		if strings.HasPrefix(execLine, "exit") {
+			fmt.Println("GoTerminal is finished")
+			return
+		}
+
+		var args = strings.Fields(execLine)
+		var command = execPath + "/" + args[0] + ".go"
+		args = args[1:]
+
+		if _, err := os.Stat(command); os.IsNotExist(err) {
+			fmt.Println("GoTerminal: " + command + ": command is not exist")
+			continue
+		}
+
+		Execute(command, args)
+	}
+
+}
+
+func Execute(command string, args []string) {
+	var execArgs = []string{"run", command}
+	execArgs = append(execArgs, args[:]...)
+	var cmd = exec.Command("go", execArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		fmt.Println("GoTerminal: ", command, ": failed execute:\n\r\t ", err)
+	}
+
+	fmt.Println(cmd.Path)
+}
+
+==> ../mkdir.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io/fs"
+	"os"
+	"strings"
+)
+
+func main() {
+	isParent := flag.Bool("p", false, "Создавать родительские подкотологи если они отсутствуют")
+	isVerbose := flag.Bool("v", false, "Выводить информацию при создании каталогов")
+
+	flag.Parse()
+
+	directories := flag.Args()
+	if len(directories) == 0 {
+		fmt.Println("mkdir: missing operand")
+		return
+	}
+
+	for _, dir := range directories {
+		make(dir, *isParent, *isVerbose)
+	}
+}
+
+func make(dir string, isParent bool, isVerbose bool) {
+	var err error
+
+	if index := strings.LastIndex(dir, "/"); index != -1 {
+		parent := dir[:index]
+		if isParent && err == nil {
+			make(parent, isParent, isVerbose)
+		}
+	}
+
+	err = os.Mkdir(dir, fs.ModePerm)
+
+	if err != nil {
+		fmt.Printf("mkdir: cannot create directory %s: %v\n", dir, err)
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("mkdir: created directory '%s'\n", dir)
+	}
+
+}
+
+==> ../nl.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	flag.Parse()
+
+	files := flag.Args()
+
+	var countLine int64 = 0
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("nl: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.TrimSpace(line) != "" {
+				countLine++
+				line = fmt.Sprintf("%6s  %s", strconv.FormatInt(countLine, 10), line)
+			}
+			fmt.Println(line)
+		}
+	}
+}
+
+==> ../pwd.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	isValue := flag.Bool("L", false, "Показать значение $PWD")
+	isPhysical := flag.Bool("P", false, "Показать физическую директорию, без символических ссылок")
+
+	flag.Parse()
+
+	pwd, _ := os.Getwd()
+	if *isValue {
+		fmt.Println(pwd)
+		return
+	}
+	if *isPhysical {
+		pwd, _ = filepath.Abs(filepath.Dir("."))
+	}
+
+	fmt.Println(pwd)
+}
+
+==> ../rmdir.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	isParent := flag.Bool("p", false, "Удалять родительские подкотологи если они пусты")
+	isVerbose := flag.Bool("v", false, "Выводить информацию при удалении каталогов")
+
+	flag.Parse()
+
+	directories := flag.Args()
+	if len(directories) == 0 {
+		fmt.Println("rmdir: missing operand")
+		return
+	}
+
+	for _, dir := range directories {
+		removeDir(dir, *isParent, *isVerbose)
+	}
+}
+
+func removeDir(dir string, isParent bool, isVerbose bool) {
+	var err error
+
+	status, _ := os.Stat(dir)
+
+	if status.IsDir() == false {
+		fmt.Printf("rmdir: failed to remove %s: %s\n", dir, "not a directory")
+		return
+	}
+
+	err = os.Remove(dir)
+
+	if err != nil {
+		fmt.Printf("rmdir: failed to remove %s: %v\n", dir, err)
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("rmdir: removing directory '%s'\n", dir)
+	}
+
+	if index := strings.LastIndex(dir, "/"); index != -1 {
+		parent := dir[:index]
+		if isParent && err == nil {
+			removeDir(parent, isParent, isVerbose)
+		}
+	}
+}
+
+==> ../rm.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	isForce := flag.Bool("f", false, "Инорировать несуществующие файлы и аргументы")
+	isRecursive := flag.Bool("r", false, "Рекурсивно удалять каталоги и их содержимое")
+	isVerbose := flag.Bool("v", false, "Пояснять производимые действия")
+
+	flag.Parse()
+
+	files := flag.Args()
+
+	for _, fileName := range files {
+		remove(fileName, *isForce, *isRecursive, *isVerbose)
+	}
+}
+
+func remove(file string, isForce bool, isRecursive bool, isVerbose bool) {
+	var err error
+
+	if isRecursive {
+		dirs, _ := os.ReadDir(file)
+		for _, f := range dirs {
+			remove(file+"/"+f.Name(), isForce, isRecursive, isVerbose)
+		}
+	}
+
+	err = os.Remove(file)
+	if err != nil {
+		if isForce == false {
+			fmt.Printf("rm: failed to remove %s: %v\n", file, err)
+		}
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("rm: removing '%s'\n", file)
+	}
+}
+
+==> ../tail.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	CountLines := flag.Int("n", -1, "Выводит последнее КОЛИЧЕСТВО строк файла")
+	CountBytes := flag.Int("c", -1, "Выводит последнее КОЛИЧЕСТВО байт файла")
+	isVerbose := flag.Bool("v", false, "Выводит название(шапку) перед каждым файлом")
+
+	flag.Parse()
+	if *CountLines < 0 && *CountBytes < 0 {
+		*CountLines = 10
+	}
+
+	files := flag.Args()
+	for _, fileName := range files {
+		var output string
+
+		if *isVerbose {
+			output += fmt.Sprintf("==> %s <==\n", fileName)
+		}
+
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("tail: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		if *CountLines > 0 && *CountBytes > 0 {
+			lines := scanLines(file, *CountLines)
+			bytes := scanBytes(file, *CountBytes)
+			if len(lines) >= len(bytes) {
+				output += lines
+			} else {
+				output += bytes
+			}
+		} else if *CountLines > 0 {
+			output += scanLines(file, *CountLines)
+		} else if *CountBytes > 0 {
+			output += scanBytes(file, *CountBytes)
+		}
+		fmt.Println(output)
+	}
+}
+
+func scanLines(file *os.File, lines int) string {
+	var output string
+
+	counter := bufio.NewScanner(file)
+	countLines := 0
+	for counter.Scan() {
+		countLines++
+	}
+
+	scanner := bufio.NewScanner(file)
+	for i := 0; scanner.Scan() && i < countLines-lines; i++ {
+		scanner.Text()
+	}
+	for scanner.Scan() {
+		output += fmt.Sprintln(scanner.Text())
+	}
+
+	return output
+}
+
+func scanBytes(file *os.File, bytes int) string {
+	var output string
+
+	info, _ := file.Stat()
+	size := info.Size()
+
+	buffer := make([]byte, bytes)
+	byteRead, _ := file.ReadAt(buffer, size-int64(bytes))
+	output = string(buffer[:byteRead])
+
+	return output
+}
+
+==> ../tar.go <==
+package main
+
+import (
+	"archive/tar"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	// Объявление флагов для команды tar
+	create := flag.Bool("c", false, "Создать новый архив")
+	extract := flag.Bool("x", false, "Извлечь файлы из архива")
+	archiveName := flag.String("f", "", "Имя файла архива")
+
+	flag.Parse()
+
+	// Создание нового архива
+	if *create && *archiveName != "" {
+		files := flag.Args()
+		err := createArchive(files, *archiveName)
+		if err != nil {
+			fmt.Printf("tar: %s: %v\n", *archiveName, err)
+		} else {
+			fmt.Println("tar: arhive created:", *archiveName)
+		}
+	}
+
+	// Извлечение файлов из архива
+	if *extract && *archiveName != "" {
+		err := extractArchive(*archiveName)
+		if err != nil {
+			fmt.Printf("tar: %s: %v\n", *archiveName, err)
+		} else {
+			fmt.Println("tar: arhive is dearhivate:", *archiveName)
+		}
+	}
+}
+
+// Создание нового архива
+func createArchive(files []string, archiveName string) error {
+	archiveFile, err := os.Create(archiveName)
+	if err != nil {
+		return err
+	}
+	defer archiveFile.Close()
+
+	tw := tar.NewWriter(archiveFile)
+	defer tw.Close()
+
+	for _, file := range files {
+		err := filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			header, err := tar.FileInfoHeader(info, info.Name())
+			if err != nil {
+				return err
+			}
+
+			header.Name = path
+
+			if err := tw.WriteHeader(header); err != nil {
+				return err
+			}
+
+			if !info.Mode().IsDir() {
+				fileToArchive, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				defer fileToArchive.Close()
+
+				if _, err := io.Copy(tw, fileToArchive); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// Извлечение файлов из архива
+func extractArchive(archiveName string) error {
+	archiveFile, err := os.Open(archiveName)
+	if err != nil {
+		return err
+	}
+	defer archiveFile.Close()
+
+	tr := tar.NewReader(archiveFile)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Printf("tar: dearhivate... %s\n", header.Name)
+
+		targetFilePath := filepath.Join(".", header.Name)
+		if header.Typeflag == tar.TypeDir {
+			if err := os.MkdirAll(targetFilePath, 0755); err != nil {
+				return err
+			}
+			continue
+		}
+
+		// Создание файла и копирование данных
+		fileToExtract, err := os.Create(targetFilePath)
+		if err != nil {
+			return err
+		}
+		defer fileToExtract.Close()
+
+		if _, err := io.Copy(fileToExtract, tr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+==> ../touch.go <==
+package main
+
+import (
+	"errors"
+	"flag"
+	"os"
+	"time"
+)
+
+func main() {
+	isNoCreated := flag.Bool("c", false, "Не создавать файлы")
+
+	flag.Parse()
+
+	files := flag.Args()
+
+	for _, fileName := range files {
+		err := os.Chtimes(fileName, time.Now(), time.Now())
+
+		if errors.Is(err, os.ErrNotExist) && *isNoCreated == false {
+			os.Create(fileName)
+		}
+
+	}
+}
+
+==> ../uname.go <==
+package main
+
+import (
+	"flag"
+	"fmt"
+	"syscall"
+)
+
+func main() {
+	isAll := flag.Bool("a", false, "Вся информация")
+	isNName := flag.Bool("n", false, "Имя ядра")
+	isSName := flag.Bool("s", false, "Имя пк в сети")
+	isKRelease := flag.Bool("r", false, "Релиз ядра")
+
+	flag.Parse()
+
+	if !*isAll && !*isNName && !*isSName && !*isKRelease {
+		*isSName = true
+	}
+
+	var name syscall.Utsname
+	syscall.Uname(&name)
+
+	if *isSName || *isAll {
+		fmt.Print(bytesToString(name.Sysname[:]) + " ")
+	}
+	if *isNName || *isAll {
+		fmt.Print(bytesToString(name.Nodename[:]) + " ")
+	}
+	if *isKRelease || *isAll {
+		fmt.Print(bytesToString(name.Release[:]) + " ")
+	}
+
+	fmt.Println()
+}
+
+func bytesToString(b []int8) string {
+	var s []byte
+	for _, v := range b {
+		if v == 0 {
+			break
+		}
+		s = append(s, byte(v))
+	}
+	return string(s)
+}
+
+==> ../unzip.go <==
+package main
+
+import (
+	"archive/zip"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	// Определяем флаги
+	dFlag := flag.String("d", "", "Указание каталога для извлечения файлов")
+	oFlag := flag.Bool("o", false, "Перезапись существующих файлов")
+	qFlag := flag.Bool("q", false, "Тихий режим без вывода")
+
+	flag.Parse()
+	zipFile := flag.Arg(0)
+
+	r, err := zip.OpenReader(zipFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer r.Close()
+
+	// Перебираем файлы в архиве для извлечения
+	for _, f := range r.File {
+		targetDir := *dFlag
+		if targetDir == "" {
+			targetDir, _ = os.Getwd()
+		}
+		if !filepath.IsAbs(targetDir) {
+			targetDir, _ = filepath.Abs(targetDir)
+		}
+
+		targetPath := filepath.Join(targetDir, f.Name)
+
+		if !*qFlag {
+			fmt.Println("unzip:", f.Name)
+		}
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(targetPath, os.ModePerm)
+			continue
+		}
+
+		if !*oFlag {
+			_, err := os.Stat(targetPath)
+			if err == nil {
+				var response string
+				fmt.Printf("%s is alredy exist. Overwrite? (yes/no/all): ", targetPath)
+				_, err := fmt.Scanln(&response)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				response = strings.ToLower(strings.TrimSpace(response))
+
+				if response != "yes" && response != "y" && response != "all" {
+					continue
+				} else if response == "all" {
+					*oFlag = true
+				}
+			}
+		}
+
+		// Копируем содержимое файла в целевой файл
+		fw, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fr, err := f.Open()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		_, err = io.Copy(fw, fr)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fw.Close()
+		fr.Close()
+	}
+}
+
+==> ../wc.go <==
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	linesFlag := flag.Bool("l", false, "Отображение количества строк")
+	wordsFlag := flag.Bool("w", false, "Отображение количества слов")
+	bytesFlag := flag.Bool("c", false, "Отображение количества байт")
+
+	flag.Parse()
+
+	filename := flag.Arg(0)
+
+	if filename == "" {
+		fmt.Println("wc: enter first operand, file name")
+		return
+	}
+
+	// Если не указаны ключи, установим все ключи для выполнения
+	if !*linesFlag && !*wordsFlag && !*bytesFlag {
+		*linesFlag, *wordsFlag, *bytesFlag = true, true, true
+	}
+
+	displayWordCount(*linesFlag, *wordsFlag, *bytesFlag, filename)
+}
+
+func displayWordCount(countLines, countWords, countBytes bool, filename string) {
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Printf("wc: %s: %v\n", filename, err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineCount, wordCount, byteCount := 0, 0, 0
+
+	for scanner.Scan() {
+		lineCount++
+		words := strings.Fields(scanner.Text())
+		wordCount += len(words)
+		byteCount += len(scanner.Text()) + 1
+	}
+
+	if countLines {
+		fmt.Printf("wc: count lines: %d\n", lineCount)
+	}
+
+	if countWords {
+		fmt.Printf("wc: count words: %d\n", wordCount)
+	}
+
+	if countBytes {
+		fmt.Printf("wc: count bytes: %d\n", byteCount)
+	}
+}
+
+==> ../zip.go <==
+package main
+
+import (
+	"archive/zip"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	// Определяем флаги
+	rFlag := flag.Bool("r", false, "Рекурсивное добавление файлов и каталогов")
+	nineFlag := flag.Bool("9", false, "Использовать наивысший уровень сжатия")
+	oFlag := flag.String("o", "output.zip", "Имя архива")
+
+	flag.Parse()
+	files := flag.Args()
+
+	// Создаем новый архив
+	newZipFile, err := os.Create(*oFlag)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer newZipFile.Close()
+
+	zipWriter := zip.NewWriter(newZipFile)
+	defer zipWriter.Close()
+
+	// Добавляем файлы или директории в архив
+	for _, file := range files {
+		basePath := ""
+		if *rFlag {
+			fi, err := os.Stat(file)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			if fi.IsDir() {
+				basePath = file
+			}
+		}
+
+		err = addFilesToZip(file, basePath, zipWriter, *nineFlag)
+		if err != nil {
+			fmt.Printf("zip: %s: %v\n", file, err)
+			return
+		}
+	}
+
+	fmt.Println("zip: archive created:", *oFlag)
+}
+
+// Функция для рекурсивного добавления файлов
+func addFilesToZip(file string, base string, zipWriter *zip.Writer, isNineZip bool) error {
+	info, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		files, err := os.ReadDir(file)
+		if err != nil {
+			return err
+		}
+		for _, f := range files {
+			err = addFilesToZip(filepath.Join(file, f.Name()), base, zipWriter, isNineZip)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		fileToZip, err := os.Open(file)
+		if err != nil {
+			return err
+		}
+		defer fileToZip.Close()
+
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		if isNineZip {
+			header.Method = zip.Deflate
+		}
+
+		if base != "" {
+			rel, err := filepath.Rel(base, file)
+			if err != nil {
+				return err
+			}
+			header.Name = filepath.ToSlash(rel)
+		}
+
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(writer, fileToZip)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+

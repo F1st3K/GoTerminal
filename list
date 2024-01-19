@@ -1,0 +1,1554 @@
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func main() {
+	fmt.Println(runtime.GOARCH)
+}
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	isNumeric := flag.Bool("n", false, "M-PM-^]M-QM-^CM-PM-<M-PM-5M-QM-^@M-PM->M-PM-2M-PM-0M-QM-^BM-QM-^L M-PM-2M-QM-^AM-PM-5 M-QM-^AM-QM-^BM-QM-^@M-PM->M-PM-:M-PM-8 M-PM-?M-QM-^@M-PM-8 M-PM-2M-QM-^KM-PM-2M-PM->M-PM-4M-PM-5")
+	isNonEmptyNumeric := flag.Bool("b", false, "M-PM-^]M-QM-^CM-PM-<M-PM-5M-QM-^@M-PM->M-PM-2M-PM-0M-QM-^BM-QM-^L M-PM-=M-PM-5M-PM-?M-QM-^CM-QM-^AM-QM-^BM-QM-^KM-PM-5 M-QM-^AM-QM-^BM-QM-^@M-PM->M-PM-:M-PM-8 M-PM-?M-QM-^@M-PM-8 M-PM-2M-QM-^KM-PM-2M-PM->M-PM-4M-PM-5")
+	isShowEnd := flag.Bool("E", false, "M-PM-^_M-PM->M-PM-:M-PM-0M-PM-7M-QM-^KM-PM-2M-PM-0M-QM-^BM-QM-^LM-QM-^L $  M-PM-2 M-PM-:M-PM->M-PM-=M-QM-^FM-PM-5 M-PM-:M-PM-0M-PM-6M-PM-4M-PM->M-PM-9 M-QM-^AM-QM-^BM-QM-^@M-PM->M-PM-:M-PM-8")
+
+	flag.Parse()
+
+	files := flag.Args()
+
+	var countLine int64 = 0
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("cat: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if *isNonEmptyNumeric {
+				if strings.TrimSpace(line) != "" {
+					countLine++
+					line = fmt.Sprintf("%6s  %s", strconv.FormatInt(countLine, 10), line)
+				}
+			} else if *isNumeric {
+				countLine++
+				line = fmt.Sprintf("%6s  %s", strconv.FormatInt(countLine, 10), line)
+			}
+			if *isShowEnd {
+				line = line + "$"
+			}
+			fmt.Println(line)
+		}
+	}
+}
+package main
+
+/*
+#include <unistd.h>
+*/
+import "C"
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/exec"
+)
+
+func main() {
+	flag.Bool("L", false, "M-PM-^_M-QM-^@M-PM-8M-PM-=M-QM-^CM-PM-4M-PM-8M-QM-^BM-PM-5M-PM-;M-QM-^LM-PM-=M-PM-> M-QM-^AM-PM-;M-PM-5M-PM-4M-PM->M-PM-2M-PM-0M-QM-^BM-QM-^L M-QM-^AM-PM-8M-PM-<M-PM-2M-PM->M-PM-;M-QM-^LM-PM-=M-QM-^KM-PM-< M-QM-^AM-QM-^AM-QM-^KM-PM-;M-PM-:M-PM-0M-PM-<")
+	flag.Bool("P", false, "M-PM-^XM-QM-^AM-PM-?M-PM->M-PM-;M-QM-^LM-PM-7M-PM->M-PM-2M-PM-0M-QM-^BM-QM-^L M-QM-^DM-PM-8M-PM-7M-PM-8M-QM-^GM-PM-5M-QM-^AM-PM-:M-QM-^CM-QM-^N M-QM-^AM-QM-^BM-QM-^@M-QM-^CM-PM-:M-QM-^BM-QM-^CM-QM-^@M-QM-^C M-PM-:M-PM-0M-QM-^BM-PM-0M-PM-;M-PM->M-PM-3M-PM->M-PM-2, M-PM-=M-PM-5 M-QM-^AM-PM-;M-PM-5M-PM-4M-QM-^CM-QM-^O M-QM-^AM-PM-8M-PM-<M-PM-2M-PM->M-PM-;M-PM-8M-QM-^GM-PM-5M-QM-^AM-PM-:M-PM-8M-PM-< M-QM-^AM-QM-^AM-QM-^KM-PM-;M-PM-:M-PM-0M-PM-<")
+
+	flag.Parse()
+
+	var directory string
+	//M-PM-5M-QM-^AM-PM-;M-PM-8 M-PM-0M-QM-^@M-PM-3M-QM-^CM-PM-<M-PM-5M-PM-=M-QM-^BM-QM-^K M-PM->M-QM-^BM-QM-^AM-QM-^CM-QM-^BM-QM-^AM-QM-^BM-PM-2M-QM-^CM-QM-^NM-QM-^B, M-PM-?M-PM-5M-QM-^@M-PM-5M-PM-9M-QM-^BM-PM-8 M-PM-2 M-PM-4M-PM->M-PM-<M-PM-0M-QM-^HM-PM-=M-PM-8M-PM-9 M-PM-:M-PM-0M-QM-^BM-PM-0M-PM-;M-PM->M-PM-3 M-PM-?M-PM->M-PM-;M-QM-^LM-PM-7M-PM->M-PM-2M-PM-0M-QM-^BM-PM-5M-PM-;M-QM-^O
+	countArgs := len(flag.Args())
+	if len(flag.Args()) == 1 {
+		directory = flag.Arg(0)
+	}
+	if countArgs == 0 {
+		directory, _ = os.UserHomeDir()
+	}
+	if countArgs > 1 {
+		fmt.Println("cd: too many arguments")
+		return
+	}
+
+	//M-PM-^_M-PM->M-PM-<M-PM-5M-PM-=M-QM-^OM-PM-5M-PM-< M-QM-^BM-PM-5M-PM-:M-QM-^CM-QM-^IM-PM-8M-PM-9 M-PM-:M-PM-0M-QM-^BM-PM->M-PM-;M-PM->M-PM-3 M-QM-^A M-PM-?M-PM->M-PM-<M-PM->M-QM-^IM-QM-^LM-QM-^N M-PM-!
+	_, err := C.chdir(C.CString(directory))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	//M-PM-^_M-PM->M-PM-;M-QM-^CM-QM-^GM-PM-0M-PM-5M-PM-< M-PM-?M-PM-5M-QM-^@M-PM-5M-PM-<M-PM-5M-PM-=M-PM-=M-QM-^CM-QM-^N M-PM->M-PM-:M-QM-^@M-QM-^CM-PM-6M-PM-5M-PM-=M-PM-8M-QM-^O SHELL M-PM-8 M-PM-7M-PM-0M-PM-?M-QM-^CM-QM-^AM-PM-:M-PM-0M-PM-5M-PM-< M-PM->M-PM-1M-PM->M-PM-;M-PM->M-QM-^GM-PM-:M-QM-^C
+	shell := os.Getenv("SHELL")
+	cmd := exec.Command(shell)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+)
+
+func main() {
+	isScroll := flag.Bool("x", false, "M-PM-^_M-QM-^@M-PM->M-QM-^AM-PM-:M-QM-^@M-PM->M-PM-;M-PM-8M-QM-^BM-QM-^L M-PM-2M-PM-<M-PM-5M-QM-^AM-QM-^BM-PM-> M-PM->M-QM-^GM-PM-8M-QM-^AM-QM-^BM-PM-:M-PM-8")
+	flag.Parse()
+
+	if *isScroll {
+		fmt.Print("\033[H\033[2J")
+	} else {
+		fmt.Print("\x1bc")
+	}
+
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+)
+
+func main() {
+	isVerbose := flag.Bool("v", false, "M-PM-^_M-PM->M-QM-^OM-QM-^AM-PM-=M-QM-^OM-PM-5M-QM-^B M-PM-?M-QM-^@M-PM->M-PM-8M-PM-7M-PM-2M-PM->M-PM-4M-PM-8M-PM-<M-QM-^KM-PM-5 M-PM-4M-PM-5M-PM-9M-QM-^AM-QM-^BM-PM-2M-PM-8M-QM-^O")
+	isRecursive := flag.Bool("r", false, "M-PM-^ZM-PM->M-PM-?M-PM-8M-QM-^@M-QM-^CM-PM-5M-QM-^B M-PM-2M-QM-^AM-PM-5 M-PM-?M-PM->M-PM-4M-PM-:M-PM-0M-QM-^BM-PM-0M-PM-;M-PM->M-PM-3M-PM-8 M-QM-^@M-PM-5M-PM-:M-QM-^CM-QM-^@M-QM-^AM-PM-8M-PM-2M-PM-=M-PM->")
+	isForce := flag.Bool("f", false, "M-PM-^XM-PM-3M-PM-=M-PM->M-QM-^@M-PM-8M-QM-^@M-QM-^CM-PM-5M-QM-^B M-PM-2M-PM->M-PM-7M-PM-=M-PM-8M-PM-:M-PM-0M-QM-^NM-QM-^IM-PM-8M-PM-5 M-PM-8M-QM-^AM-PM-:M-PM-;M-QM-^NM-QM-^GM-PM-5M-PM-=M-PM-8M-QM-^O")
+
+	flag.Parse()
+
+	if len(flag.Args()) < 1 {
+		fmt.Println("cp: skipped source operand")
+		return
+	} else if len(flag.Args()) < 2 {
+		fmt.Println("cp: skipped purpose operand")
+		return
+	}
+
+	args := flag.Args()
+	sources := args[:len(args)-1]
+	purpose := args[len(args)-1]
+
+	for _, source := range sources {
+		copyEntries(source, purpose, *isVerbose, *isRecursive, *isForce)
+	}
+}
+
+func getNamePath(path string) string {
+	paths := strings.Split(path, "/")
+	return ("/" + paths[len(paths)-1])
+}
+
+func copyEntries(source string, purpose string, isVerbose bool, isRecursive bool, isForce bool) {
+	info, err := os.Stat(source)
+	if err != nil && isForce == false {
+		fmt.Printf("cp: %s: %v\n", source, err)
+		return
+	}
+
+	if info.IsDir() {
+		if isRecursive == false {
+			fmt.Printf("cp: no such flag -r; skipped dir '%s'\n", source)
+			return
+		}
+
+		copyDir(source, purpose, isVerbose, isForce)
+	} else {
+		copyFile(source, purpose, isVerbose, isForce)
+	}
+}
+
+func copyDir(source string, purpose string, isVerbose bool, isForce bool) {
+	purpose += getNamePath(source)
+	os.MkdirAll(purpose, os.ModePerm)
+
+	if isVerbose {
+		fmt.Printf("'%s' -> '%s'\n", source, purpose)
+	}
+
+	dirs, err := os.ReadDir(source)
+	if err != nil && isForce == false {
+		fmt.Printf("cp: %s: %v\n", source, err)
+		return
+	}
+
+	for _, entry := range dirs {
+		copyEntries(source+"/"+entry.Name(), purpose, isVerbose, true, isForce)
+	}
+}
+
+func copyFile(source string, purpose string, isVerbose bool, isForce bool) {
+	info, err := os.Stat(purpose)
+	if err == nil && info.IsDir() {
+		purpose += getNamePath(source)
+	}
+
+	sourceFile, err := os.Open(source)
+	if err != nil && isForce == false {
+		fmt.Printf("cp: %s: %v\n", source, err)
+		return
+	}
+	defer sourceFile.Close()
+
+	purposeFile, err := os.Create(purpose)
+	if err != nil && isForce == false {
+		fmt.Printf("pcp: %s: %v\n", purpose, err)
+		return
+	}
+	defer purposeFile.Close()
+
+	_, err = io.Copy(purposeFile, sourceFile)
+	if err != nil && isForce == true {
+		fmt.Printf("cp: %v\n", err)
+	}
+	if isVerbose {
+		fmt.Printf("'%s' -> '%s'\n", source, purpose)
+	}
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"time"
+)
+
+func main() {
+	isUniversal := flag.Bool("u", false, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^B M-QM-^BM-PM-5M-PM-:M-QM-^CM-QM-^IM-PM-5M-PM-5 Universal Time (UTC)")
+	isRFC := flag.Bool("R", false, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^B M-PM-2M-QM-^@M-PM-5M-PM-<M-QM-^O M-PM-8 M-PM-4M-PM-0M-QM-^BM-QM-^C M-PM-2 M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^BM-PM-5 RFC 3339")
+
+	flag.Parse()
+
+	currentTime := time.Now()
+	if *isUniversal {
+		currentTime = currentTime.UTC()
+	}
+
+	if *isRFC {
+		fmt.Println(currentTime.Format("Mon, _2 Jan 2006 15:04:05 -0700"))
+	} else {
+		fmt.Println(currentTime.Format("Mon Jan _2 03:04:05 PM MST 2006"))
+	}
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
+func main() {
+	humanReadable := flag.Bool("h", false, "M-PM-^^M-QM-^BM-PM->M-PM-1M-QM-^@M-PM-0M-PM-6M-PM-5M-PM-=M-PM-8M-PM-5 M-QM-^@M-PM-0M-PM-7M-PM-<M-PM-5M-QM-^@M-PM->M-PM-2 M-PM-2 M-QM-^GM-PM-5M-PM-;M-PM->M-PM-2M-PM-5M-PM-:M-PM->-M-QM-^GM-PM-8M-QM-^BM-PM-0M-PM-5M-PM-<M-PM->M-PM-< M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^BM-PM-5")
+	inodes := flag.Bool("i", false, "M-PM-^^M-QM-^BM-PM->M-PM-1M-QM-^@M-PM-0M-PM-6M-PM-5M-PM-=M-PM-8M-PM-5 M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-PM-8 M-PM->M-PM-1 M-PM-=M-PM->M-PM-4M-PM-0M-QM-^E M-PM-2M-PM-<M-PM-5M-QM-^AM-QM-^BM-PM-> M-PM-8M-QM-^AM-PM-?M-PM->M-PM-;M-QM-^LM-PM-7M-PM->M-PM-2M-PM-0M-PM-=M-PM-8M-QM-^O M-PM-1M-PM-;M-PM->M-PM-:M-PM->M-PM-2")
+	fileSystemType := flag.String("t", "", "M-PM-^^M-PM-3M-QM-^@M-PM-0M-PM-=M-PM-8M-QM-^GM-PM-5M-PM-=M-PM-8M-PM-5 M-QM-^AM-PM-?M-PM-8M-QM-^AM-PM-:M-PM-0 M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-2M-QM-^KM-QM-^E M-QM-^AM-PM-8M-QM-^AM-QM-^BM-PM-5M-PM-< M-PM-?M-PM-> M-QM-^CM-PM-:M-PM-0M-PM-7M-PM-0M-PM-=M-PM-=M-PM->M-PM-<M-QM-^C M-QM-^BM-PM-8M-PM-?M-QM-^C")
+
+	flag.Parse()
+
+	displayDiskFree(*humanReadable, *inodes, *fileSystemType)
+}
+
+func displayDiskFree(humanReadable, inodes bool, fileSystemType string) {
+	command := "df"
+	args := []string{"-P"} // M-PM-^XM-QM-^AM-PM-?M-PM->M-PM-;M-QM-^LM-PM-7M-QM-^CM-PM-5M-PM-< M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^B M-PM-2M-QM-^KM-PM-2M-PM->M-PM-4M-PM-0 POSIX M-PM-4M-PM-;M-QM-^O M-QM-^CM-PM-?M-QM-^@M-PM->M-QM-^IM-PM-5M-PM-=M-PM-8M-QM-^O M-PM->M-PM-1M-QM-^@M-PM-0M-PM-1M-PM->M-QM-^BM-PM-:M-PM-8 M-PM-4M-PM-0M-PM-=M-PM-=M-QM-^KM-QM-^E
+
+	if humanReadable {
+		args = append(args, "-h")
+	}
+
+	if inodes {
+		args = append(args, "-i")
+	}
+
+	if fileSystemType != "" {
+		args = append(args, "-t", fileSystemType)
+	}
+
+	output := getFreeDisk(command, args...)
+	fmt.Println(output)
+}
+
+func getFreeDisk(command string, args ...string) string {
+	cmdOutput, err := exec.Command(command, args...).Output()
+	if err != nil {
+		return fmt.Sprintf("M-PM-^^M-QM-^HM-PM-8M-PM-1M-PM-:M-PM-0 M-PM-2M-QM-^KM-PM-?M-PM->M-PM-;M-PM-=M-PM-5M-PM-=M-PM-8M-QM-^O M-PM-:M-PM->M-PM-<M-PM-0M-PM-=M-PM-4M-QM-^K %s: %s", command, err)
+	}
+	return strings.TrimSpace(string(cmdOutput))
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os/exec"
+	"strings"
+)
+
+func main() {
+	humanReadable := flag.Bool("h", false, "M-PM-^^M-QM-^BM-PM->M-PM-1M-QM-^@M-PM-0M-PM-6M-PM-5M-PM-=M-PM-8M-PM-5 M-QM-^@M-PM-0M-PM-7M-PM-<M-PM-5M-QM-^@M-PM->M-PM-2 M-PM-2 M-QM-^GM-PM-5M-PM-;M-PM->M-PM-2M-PM-5M-PM-:M-PM->-M-QM-^GM-PM-8M-QM-^BM-PM-0M-PM-5M-PM-<M-PM->M-PM-< M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^BM-PM-5")
+	total := flag.Bool("c", false, "M-PM-^^M-QM-^BM-PM->M-PM-1M-QM-^@M-PM-0M-PM-6M-PM-5M-PM-=M-PM-8M-PM-5 M-PM-8M-QM-^BM-PM->M-PM-3M-PM->M-PM-2M-PM->M-PM-9 M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-PM-8")
+
+	flag.Parse()
+
+	displayDiskUsage(flag.Args(), *humanReadable, *total)
+}
+
+func displayDiskUsage(args []string, humanReadable bool, total bool) {
+	command := "du"
+
+	if humanReadable {
+		args = append(args, "-h")
+	}
+
+	if total {
+		args = append(args, "-c")
+	}
+
+	output := getUsageDisk(command, args...)
+	fmt.Println(output)
+}
+
+func getUsageDisk(command string, args ...string) string {
+	cmdOutput, err := exec.Command(command, args...).Output()
+	if err != nil {
+		return fmt.Sprintf("M-PM-^^M-QM-^HM-PM-8M-PM-1M-PM-:M-PM-0 M-PM-2M-QM-^KM-PM-?M-PM->M-PM-;M-PM-=M-PM-5M-PM-=M-PM-8M-QM-^O M-PM-:M-PM->M-PM-<M-PM-0M-PM-=M-PM-4M-QM-^K %s: %s", command, err)
+	}
+	return strings.TrimSpace(string(cmdOutput))
+}
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"syscall"
+)
+
+// M-PM-$M-QM-^CM-PM-=M-PM-:M-QM-^FM-PM-8M-QM-^O exit M-PM-8M-PM-=M-PM-8M-QM-^FM-PM-8M-PM-8M-QM-^@M-QM-^CM-PM-5M-QM-^B M-PM-?M-QM-^@M-PM->M-QM-^FM-PM-5M-QM-^AM-QM-^A M-PM-7M-PM-0M-PM-2M-PM-5M-QM-^@M-QM-^HM-PM-5M-PM-=M-PM-8M-QM-^O M-PM-?M-QM-^@M-PM->M-PM-3M-QM-^@M-PM-0M-PM-<M-PM-<M-QM-^K mate-terminal
+func main() {
+	cmd := exec.Command("pidof", os.Getenv("SHELL"))
+	output, error := cmd.Output()
+	if error != nil {
+		fmt.Println(error)
+	}
+	strData := string(output)
+	str := strings.TrimSpace(strData)
+	intValue, err := strconv.Atoi(str)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// M-PM-^WM-PM-0M-PM-2M-PM-5M-QM-^@M-QM-^HM-PM-5M-PM-=M-PM-8M-PM-5 M-PM-?M-QM-^@M-PM->M-QM-^FM-PM-5M-QM-^AM-QM-^AM-PM-0 mate-terminal M-QM-^A M-PM-8M-QM-^AM-PM-?M-PM->M-PM-;M-QM-^LM-PM-7M-PM->M-PM-2M-PM-0M-PM-=M-PM-8M-PM-5M-PM-< M-PM-8M-PM-4M-PM-5M-PM-=M-QM-^BM-PM-8M-QM-^DM-PM-8M-PM-:M-PM-0M-QM-^BM-PM->M-QM-^@M-PM-0 M-PM-?M-QM-^@M-PM->M-QM-^FM-PM-5M-QM-^AM-QM-^AM-PM-0
+	er := syscall.Kill(intValue, syscall.SIGKILL)
+	if er != nil {
+		panic(er.Error())
+	}
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"net/http"
+	"os"
+)
+
+func main() {
+	flag.Parse()
+
+	files := flag.Args()
+
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("file: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		buffer := make([]byte, 512)
+		file.Read(buffer)
+		fmt.Println(fileName + ": ", http.DetectContentType(buffer))
+	}
+
+}
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	isByte := flag.Bool("b", false, "M-PM-^_M-PM->M-PM-:M-PM-0M-PM-7M-PM-0M-QM-^BM-QM-^L M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-QM-^N M-PM-2 M-PM-1M-PM-0M-PM-9M-QM-^BM-PM-0M-QM-^E")
+	isMByte := flag.Bool("mega", false, "M-PM-^_M-PM->M-PM-:M-PM-0M-PM-7M-PM-0M-QM-^BM-QM-^L M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-QM-^N M-PM-2 M-PM-<M-PM-5M-PM-3M-PM-0M-PM-1M-PM-0M-PM-9M-QM-^BM-PM-0M-QM-^E")
+	isGByte := flag.Bool("giga", false, "M-PM-^_M-PM->M-PM-:M-PM-0M-PM-7M-PM-0M-QM-^BM-QM-^L M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-QM-^N M-PM-2 M-PM-3M-PM-8M-PM-3M-PM-0M-PM-1M-PM-0M-PM-9M-QM-^BM-PM-0M-QM-^E")
+
+	flag.Parse()
+
+	if *isByte {
+		res(1024, true)
+	} else if *isMByte {
+		res(1024, false)
+	} else if *isGByte {
+		res(1024*1024, false)
+	} else {
+		res(1, false)
+	}
+}
+
+func res(ch int, key_b bool) {
+	var memTotal int
+	var memFree int
+	var memAvailable int
+	var memBuffers int
+	var memCashed int
+	var memShared int
+	var swapTotal int
+	var swapFree int
+
+	f, e := os.Open("/proc/meminfo")
+	if e != nil {
+		panic(e)
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+
+	for s.Scan() {
+
+		if strings.Contains(s.Text(), "MemTotal") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memTotal = res
+		}
+		if strings.Contains(s.Text(), "MemFree") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memFree = res
+		}
+		if strings.Contains(s.Text(), "MemAvailable") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memAvailable = res
+		}
+		if strings.Contains(s.Text(), "Buffers") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memBuffers = res
+		}
+		if strings.Contains(s.Text(), "Cached") && strings.Contains(s.Text(), "SwapCached") == false {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memCashed = res
+		}
+		if strings.Contains(s.Text(), "Shmem:") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			memShared = res
+		}
+		if strings.Contains(s.Text(), "SwapTotal") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			swapTotal = res
+		}
+		if strings.Contains(s.Text(), "SwapFree") {
+			res, err := strconv.Atoi(strings.TrimSpace(strings.Split(strings.Split(s.Text(), ":")[1], "k")[0]))
+			if err != nil {
+				log.Fatal(err)
+			}
+			swapFree = res
+		}
+	}
+	if key_b {
+		memTotal = memTotal * ch
+		memFree = memFree * ch
+		memAvailable = memAvailable * ch
+		memBuffers = memBuffers * ch
+		memCashed = memCashed * ch
+		memShared = memShared * ch
+		swapTotal = swapTotal * ch
+		swapFree = swapFree * ch
+	} else {
+		memTotal = memTotal / ch
+		memFree = memFree / ch
+		memAvailable = memAvailable / ch
+		memBuffers = memBuffers / ch
+		memCashed = memCashed / ch
+		memShared = memShared / ch
+		swapTotal = swapTotal / ch
+		swapFree = swapFree / ch
+	}
+
+	fmt.Printf("        %12s%12s%12s%12s%12s%12s\n",
+		"total", "used", "free", "shared", "buff/cache", "avaliable")
+	fmt.Printf("Mem:    %12s%12s%12s%12s%12s%12s\n",
+		strconv.Itoa(memTotal), strconv.Itoa(memTotal-memFree),
+		strconv.Itoa(memFree), strconv.Itoa(memShared),
+		strconv.Itoa(memBuffers+memCashed), strconv.Itoa(memAvailable))
+	fmt.Printf("Swap:   %12s%12s%12s%12s%12s%12s\n",
+		strconv.Itoa(swapTotal), strconv.Itoa(swapTotal-swapFree),
+		strconv.Itoa(swapFree), "", "", "")
+}
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	CountLines := flag.Int("n", -1, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^B M-PM-?M-PM-5M-QM-^@M-PM-2M-PM->M-PM-5 M-PM-^ZM-PM-^^M-PM-^[M-PM-^XM-PM-'M-PM-^UM-PM-!M-PM-"M-PM-^RM-PM-^^ M-QM-^AM-QM-^BM-QM-^@M-PM->M-PM-: M-QM-^DM-PM-0M-PM-9M-PM-;M-PM-0")
+	CountBytes := flag.Int("c", -1, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^B M-PM-?M-PM-5M-QM-^@M-PM-2M-PM->M-PM-5 M-PM-^ZM-PM-^^M-PM-^[M-PM-^XM-PM-'M-PM-^UM-PM-!M-PM-"M-PM-^RM-PM-^^ M-PM-1M-PM-0M-PM-9M-QM-^B M-QM-^DM-PM-0M-PM-9M-PM-;M-PM-0")
+	isVerbose := flag.Bool("v", false, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^B M-PM-=M-PM-0M-PM-7M-PM-2M-PM-0M-PM-=M-PM-8M-PM-5(M-QM-^HM-PM-0M-PM-?M-PM-:M-QM-^C) M-PM-?M-PM-5M-QM-^@M-PM-5M-PM-4 M-PM-:M-PM-0M-PM-6M-PM-4M-QM-^KM-PM-< M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-<")
+
+	flag.Parse()
+	if *CountLines < 0 && *CountBytes < 0 {
+		*CountLines = 10
+	}
+
+	files := flag.Args()
+	for _, fileName := range files {
+		var output string
+
+		if *isVerbose {
+			output += fmt.Sprintf("==> %s <==\n", fileName)
+		}
+
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("head: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		if *CountLines > 0 && *CountBytes > 0 {
+			lines := scanLines(file, *CountLines)
+			bytes := scanBytes(file, *CountBytes)
+			if len(lines) >= len(bytes) {
+				output += lines
+			} else {
+				output += bytes
+			}
+		} else if *CountLines > 0 {
+			output += scanLines(file, *CountLines)
+		} else if *CountBytes > 0 {
+			output += scanBytes(file, *CountBytes)
+		}
+		fmt.Println(output)
+	}
+}
+
+func scanLines(file *os.File, lines int) string {
+	var output string
+
+	scanner := bufio.NewScanner(file)
+	for i := 0; scanner.Scan() && i < lines; i++ {
+		output += fmt.Sprintln(scanner.Text())
+	}
+
+	return output
+}
+
+func scanBytes(file *os.File, bytes int) string {
+	var output string
+
+	buffer := make([]byte, bytes)
+	byteRead, _ := file.Read(buffer)
+	output = string(buffer[:byteRead])
+
+	return output
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"log"
+	"os"
+	"os/user"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	clearHistory := flag.Bool("c", false, "M-PM-^^M-QM-^GM-PM-8M-QM-^AM-QM-^BM-PM-8M-QM-^BM-QM-^L M-PM-8M-QM-^AM-QM-^BM-PM->M-QM-^@M-PM-8M-QM-^N M-PM-:M-PM->M-PM-<M-PM-0M-PM-=M-PM-4")
+
+	flag.Parse()
+
+	if *clearHistory {
+		clearHistoryFile()
+		return
+	}
+
+	user, _ := user.Current()
+
+	filePath := filepath.Join(user.HomeDir, ".bash_history")
+	file, _ := os.ReadFile(filePath)
+
+	fileContent := strings.Split(string(file), "\n")
+
+	for index, command := range fileContent {
+		if command != "" {
+			fmt.Printf("%5d  %s\n", index+1, command)
+		}
+	}
+}
+
+func clearHistoryFile() {
+	user, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	filePath := filepath.Join(user.HomeDir, ".bash_history")
+	err = os.WriteFile(filePath, []byte(""), 0644)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	isAll := flag.Bool("a", false, "M-PM-^RM-PM-:M-PM-;M-QM-^NM-QM-^GM-PM-8M-QM-^BM-QM-^L M-QM-^AM-PM-:M-QM-^@M-QM-^KM-QM-^BM-QM-^KM-PM-5 M-QM-^DM-PM-;M-PM-0M-PM-3M-PM-8")
+	isLong := flag.Bool("l", false, "M-PM-^_M-PM->M-PM-:M-PM-0M-PM-7M-PM-0M-QM-^BM-QM-^L M-PM-?M-PM->M-PM-4M-QM-^@M-PM->M-PM-1M-PM-=M-QM-^CM-QM-^N M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-QM-^N")
+	isReverse := flag.Bool("r", false, "M-PM-^_M-PM->M-PM-:M-PM-0M-PM-7M-PM-0M-QM-^BM-QM-^L M-PM-2 M-PM->M-PM-1M-QM-^@M-PM-0M-QM-^BM-PM-=M-PM->M-PM-< M-PM-?M-PM->M-QM-^@M-QM-^OM-PM-4M-PM-:M-PM-5")
+	isHuman := flag.Bool("h", false, "M-PM-^_M-PM-5M-QM-^GM-PM-0M-QM-^BM-PM-0M-QM-^BM-QM-^L M-QM-^@M-PM-0M-PM-7M-PM-<M-PM-5M-QM-^@M-QM-^K M-PM-2 M-QM-^CM-PM-4M-PM->M-PM-1M-PM-=M-PM->M-PM-< M-PM-4M-PM-;M-QM-^O M-PM-5M-PM-;M-PM->M-PM-2M-PM-5M-PM-:M-PM-0 M-PM-2M-PM-8M-PM-4M-PM-5")
+
+	flag.Parse()
+
+	args := flag.Args()
+	if len(args) == 0 {
+		args = append(args, ".")
+	}
+
+	for _, arg := range args {
+
+		info, err := os.Stat(arg)
+		if err != nil {
+			fmt.Printf("%s: %v\n", arg, err)
+			continue
+		}
+		if !info.IsDir() {
+			fmt.Printf("%s: M-PM-^]M-PM-5 M-QM-^OM-PM-2M-PM-;M-QM-^OM-PM-5M-QM-^BM-QM-^AM-QM-^O M-PM-4M-PM-8M-QM-^@M-PM-5M-PM-:M-QM-^BM-PM->M-QM-^@M-PM-8M-PM-5M-PM-9\n", arg)
+			continue
+		}
+
+		files, err := os.ReadDir(arg)
+		if err != nil {
+			fmt.Printf("%s: %v\n", arg, err)
+			continue
+		}
+
+		var entries []os.DirEntry
+
+		for _, file := range files {
+			if strings.HasPrefix(file.Name(), ".") && *isAll == false {
+				continue
+			}
+			entries = append(entries, file)
+		}
+
+		if len(args) > 1 {
+			fmt.Println(arg + ":")
+		}
+
+		sort.Slice(entries, func(i, j int) bool {
+			return *isReverse
+		})
+		for _, entry := range entries {
+			if len(args) > 1 {
+				fmt.Print("\t")
+			}
+			PrintFile(entry, *isLong, *isHuman)
+		}
+	}
+}
+
+func PrintFile(entry os.DirEntry, isLong bool, isHuman bool) {
+	ls := entry.Name()
+	if entry.IsDir() {
+		ls = "./" + ls
+	}
+	if isLong {
+		info, _ := entry.Info()
+		size := strconv.FormatInt(info.Size(), 10)
+		if isHuman {
+			size = strconv.FormatInt(info.Size()/1024, 10) + "MB"
+		}
+		ls = size + "\t" + info.ModTime().Format("Jan _2 03:15 ") + ls
+	}
+	fmt.Println(ls)
+}
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+)
+
+func main() {
+	var _, filename, _, _ = runtime.Caller(0)
+	var execFile, _ = filepath.Abs(filename)
+	var execPath = filepath.Dir(execFile)
+	var scanner = bufio.NewScanner(os.Stdin)
+
+	for {
+		fmt.Print(":")
+		scanner.Scan()
+		var execLine = scanner.Text()
+
+		if strings.HasPrefix(execLine, "exit") {
+			fmt.Println("GoTerminal is finished")
+			return
+		}
+
+		var args = strings.Fields(execLine)
+		var command = execPath + "/" + args[0] + ".go"
+		args = args[1:]
+
+		if _, err := os.Stat(command); os.IsNotExist(err) {
+			fmt.Println("GoTerminal: " + command + ": command is not exist")
+			continue
+		}
+
+		Execute(command, args)
+	}
+
+}
+
+func Execute(command string, args []string) {
+	var execArgs = []string{"run", command}
+	execArgs = append(execArgs, args[:]...)
+	var cmd = exec.Command("go", execArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		fmt.Println("GoTerminal: ", command, ": failed execute:\n\r\t ", err)
+	}
+
+	fmt.Println(cmd.Path)
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"io/fs"
+	"os"
+	"strings"
+)
+
+func main() {
+	isParent := flag.Bool("p", false, "M-PM-!M-PM->M-PM-7M-PM-4M-PM-0M-PM-2M-PM-0M-QM-^BM-QM-^L M-QM-^@M-PM->M-PM-4M-PM-8M-QM-^BM-PM-5M-PM-;M-QM-^LM-QM-^AM-PM-:M-PM-8M-PM-5 M-PM-?M-PM->M-PM-4M-PM-:M-PM->M-QM-^BM-PM->M-PM-;M-PM->M-PM-3M-PM-8 M-PM-5M-QM-^AM-PM-;M-PM-8 M-PM->M-PM-=M-PM-8 M-PM->M-QM-^BM-QM-^AM-QM-^CM-QM-^BM-QM-^AM-QM-^BM-PM-2M-QM-^CM-QM-^NM-QM-^B")
+	isVerbose := flag.Bool("v", false, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^BM-QM-^L M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-QM-^N M-PM-?M-QM-^@M-PM-8 M-QM-^AM-PM->M-PM-7M-PM-4M-PM-0M-PM-=M-PM-8M-PM-8 M-PM-:M-PM-0M-QM-^BM-PM-0M-PM-;M-PM->M-PM-3M-PM->M-PM-2")
+
+	flag.Parse()
+
+	directories := flag.Args()
+	if len(directories) == 0 {
+		fmt.Println("mkdir: missing operand")
+		return
+	}
+
+	for _, dir := range directories {
+		make(dir, *isParent, *isVerbose)
+	}
+}
+
+func make(dir string, isParent bool, isVerbose bool) {
+	var err error
+
+	if index := strings.LastIndex(dir, "/"); index != -1 {
+		parent := dir[:index]
+		if isParent && err == nil {
+			make(parent, isParent, isVerbose)
+		}
+	}
+
+	err = os.Mkdir(dir, fs.ModePerm)
+
+	if err != nil {
+		fmt.Printf("mkdir: cannot create directory %s: %v\n", dir, err)
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("mkdir: created directory '%s'\n", dir)
+	}
+
+}
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+func main() {
+	flag.Parse()
+
+	files := flag.Args()
+
+	var countLine int64 = 0
+	for _, fileName := range files {
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("nl: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		scanner := bufio.NewScanner(file)
+
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.TrimSpace(line) != "" {
+				countLine++
+				line = fmt.Sprintf("%6s  %s", strconv.FormatInt(countLine, 10), line)
+			}
+			fmt.Println(line)
+		}
+	}
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	isValue := flag.Bool("L", false, "M-PM-^_M-PM->M-PM-:M-PM-0M-PM-7M-PM-0M-QM-^BM-QM-^L M-PM-7M-PM-=M-PM-0M-QM-^GM-PM-5M-PM-=M-PM-8M-PM-5 $PWD")
+	isPhysical := flag.Bool("P", false, "M-PM-^_M-PM->M-PM-:M-PM-0M-PM-7M-PM-0M-QM-^BM-QM-^L M-QM-^DM-PM-8M-PM-7M-PM-8M-QM-^GM-PM-5M-QM-^AM-PM-:M-QM-^CM-QM-^N M-PM-4M-PM-8M-QM-^@M-PM-5M-PM-:M-QM-^BM-PM->M-QM-^@M-PM-8M-QM-^N, M-PM-1M-PM-5M-PM-7 M-QM-^AM-PM-8M-PM-<M-PM-2M-PM->M-PM-;M-PM-8M-QM-^GM-PM-5M-QM-^AM-PM-:M-PM-8M-QM-^E M-QM-^AM-QM-^AM-QM-^KM-PM-;M-PM->M-PM-:")
+
+	flag.Parse()
+
+	pwd, _ := os.Getwd()
+	if *isValue {
+		fmt.Println(pwd)
+		return
+	}
+	if *isPhysical {
+		pwd, _ = filepath.Abs(filepath.Dir("."))
+	}
+
+	fmt.Println(pwd)
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	isParent := flag.Bool("p", false, "M-PM-#M-PM-4M-PM-0M-PM-;M-QM-^OM-QM-^BM-QM-^L M-QM-^@M-PM->M-PM-4M-PM-8M-QM-^BM-PM-5M-PM-;M-QM-^LM-QM-^AM-PM-:M-PM-8M-PM-5 M-PM-?M-PM->M-PM-4M-PM-:M-PM->M-QM-^BM-PM->M-PM-;M-PM->M-PM-3M-PM-8 M-PM-5M-QM-^AM-PM-;M-PM-8 M-PM->M-PM-=M-PM-8 M-PM-?M-QM-^CM-QM-^AM-QM-^BM-QM-^K")
+	isVerbose := flag.Bool("v", false, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^BM-QM-^L M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-QM-^N M-PM-?M-QM-^@M-PM-8 M-QM-^CM-PM-4M-PM-0M-PM-;M-PM-5M-PM-=M-PM-8M-PM-8 M-PM-:M-PM-0M-QM-^BM-PM-0M-PM-;M-PM->M-PM-3M-PM->M-PM-2")
+
+	flag.Parse()
+
+	directories := flag.Args()
+	if len(directories) == 0 {
+		fmt.Println("rmdir: missing operand")
+		return
+	}
+
+	for _, dir := range directories {
+		removeDir(dir, *isParent, *isVerbose)
+	}
+}
+
+func removeDir(dir string, isParent bool, isVerbose bool) {
+	var err error
+
+	status, _ := os.Stat(dir)
+
+	if status.IsDir() == false {
+		fmt.Printf("rmdir: failed to remove %s: %s\n", dir, "not a directory")
+		return
+	}
+
+	err = os.Remove(dir)
+
+	if err != nil {
+		fmt.Printf("rmdir: failed to remove %s: %v\n", dir, err)
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("rmdir: removing directory '%s'\n", dir)
+	}
+
+	if index := strings.LastIndex(dir, "/"); index != -1 {
+		parent := dir[:index]
+		if isParent && err == nil {
+			removeDir(parent, isParent, isVerbose)
+		}
+	}
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	isForce := flag.Bool("f", false, "M-PM-^XM-PM-=M-PM->M-QM-^@M-PM-8M-QM-^@M-PM->M-PM-2M-PM-0M-QM-^BM-QM-^L M-PM-=M-PM-5M-QM-^AM-QM-^CM-QM-^IM-PM-5M-QM-^AM-QM-^BM-PM-2M-QM-^CM-QM-^NM-QM-^IM-PM-8M-PM-5 M-QM-^DM-PM-0M-PM-9M-PM-;M-QM-^K M-PM-8 M-PM-0M-QM-^@M-PM-3M-QM-^CM-PM-<M-PM-5M-PM-=M-QM-^BM-QM-^K")
+	isRecursive := flag.Bool("r", false, "M-PM- M-PM-5M-PM-:M-QM-^CM-QM-^@M-QM-^AM-PM-8M-PM-2M-PM-=M-PM-> M-QM-^CM-PM-4M-PM-0M-PM-;M-QM-^OM-QM-^BM-QM-^L M-PM-:M-PM-0M-QM-^BM-PM-0M-PM-;M-PM->M-PM-3M-PM-8 M-PM-8 M-PM-8M-QM-^E M-QM-^AM-PM->M-PM-4M-PM-5M-QM-^@M-PM-6M-PM-8M-PM-<M-PM->M-PM-5")
+	isVerbose := flag.Bool("v", false, "M-PM-^_M-PM->M-QM-^OM-QM-^AM-PM-=M-QM-^OM-QM-^BM-QM-^L M-PM-?M-QM-^@M-PM->M-PM-8M-PM-7M-PM-2M-PM->M-PM-4M-PM-8M-PM-<M-QM-^KM-PM-5 M-PM-4M-PM-5M-PM-9M-QM-^AM-QM-^BM-PM-2M-PM-8M-QM-^O")
+
+	flag.Parse()
+
+	files := flag.Args()
+
+	for _, fileName := range files {
+		remove(fileName, *isForce, *isRecursive, *isVerbose)
+	}
+}
+
+func remove(file string, isForce bool, isRecursive bool, isVerbose bool) {
+	var err error
+
+	if isRecursive {
+		dirs, _ := os.ReadDir(file)
+		for _, f := range dirs {
+			remove(file+"/"+f.Name(), isForce, isRecursive, isVerbose)
+		}
+	}
+
+	err = os.Remove(file)
+	if err != nil {
+		if isForce == false {
+			fmt.Printf("rm: failed to remove %s: %v\n", file, err)
+		}
+		return
+	}
+
+	if isVerbose {
+		fmt.Printf("rm: removing '%s'\n", file)
+	}
+}
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+)
+
+func main() {
+	CountLines := flag.Int("n", -1, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^B M-PM-?M-PM->M-QM-^AM-PM-;M-PM-5M-PM-4M-PM-=M-PM-5M-PM-5 M-PM-^ZM-PM-^^M-PM-^[M-PM-^XM-PM-'M-PM-^UM-PM-!M-PM-"M-PM-^RM-PM-^^ M-QM-^AM-QM-^BM-QM-^@M-PM->M-PM-: M-QM-^DM-PM-0M-PM-9M-PM-;M-PM-0")
+	CountBytes := flag.Int("c", -1, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^B M-PM-?M-PM->M-QM-^AM-PM-;M-PM-5M-PM-4M-PM-=M-PM-5M-PM-5 M-PM-^ZM-PM-^^M-PM-^[M-PM-^XM-PM-'M-PM-^UM-PM-!M-PM-"M-PM-^RM-PM-^^ M-PM-1M-PM-0M-PM-9M-QM-^B M-QM-^DM-PM-0M-PM-9M-PM-;M-PM-0")
+	isVerbose := flag.Bool("v", false, "M-PM-^RM-QM-^KM-PM-2M-PM->M-PM-4M-PM-8M-QM-^B M-PM-=M-PM-0M-PM-7M-PM-2M-PM-0M-PM-=M-PM-8M-PM-5(M-QM-^HM-PM-0M-PM-?M-PM-:M-QM-^C) M-PM-?M-PM-5M-QM-^@M-PM-5M-PM-4 M-PM-:M-PM-0M-PM-6M-PM-4M-QM-^KM-PM-< M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-<")
+
+	flag.Parse()
+	if *CountLines < 0 && *CountBytes < 0 {
+		*CountLines = 10
+	}
+
+	files := flag.Args()
+	for _, fileName := range files {
+		var output string
+
+		if *isVerbose {
+			output += fmt.Sprintf("==> %s <==\n", fileName)
+		}
+
+		file, err := os.Open(fileName)
+		if err != nil {
+			fmt.Printf("tail: %s: %v\n", fileName, err)
+			continue
+		}
+		defer file.Close()
+
+		if *CountLines > 0 && *CountBytes > 0 {
+			lines := scanLines(file, *CountLines)
+			bytes := scanBytes(file, *CountBytes)
+			if len(lines) >= len(bytes) {
+				output += lines
+			} else {
+				output += bytes
+			}
+		} else if *CountLines > 0 {
+			output += scanLines(file, *CountLines)
+		} else if *CountBytes > 0 {
+			output += scanBytes(file, *CountBytes)
+		}
+		fmt.Println(output)
+	}
+}
+
+func scanLines(file *os.File, lines int) string {
+	var output string
+
+	counter := bufio.NewScanner(file)
+	countLines := 0
+	for counter.Scan() {
+		countLines++
+	}
+
+	scanner := bufio.NewScanner(file)
+	for i := 0; scanner.Scan() && i < countLines-lines; i++ {
+		scanner.Text()
+	}
+	for scanner.Scan() {
+		output += fmt.Sprintln(scanner.Text())
+	}
+
+	return output
+}
+
+func scanBytes(file *os.File, bytes int) string {
+	var output string
+
+	info, _ := file.Stat()
+	size := info.Size()
+
+	buffer := make([]byte, bytes)
+	byteRead, _ := file.ReadAt(buffer, size-int64(bytes))
+	output = string(buffer[:byteRead])
+
+	return output
+}
+package main
+
+import (
+	"archive/tar"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	// M-PM-^^M-PM-1M-QM-^JM-QM-^OM-PM-2M-PM-;M-PM-5M-PM-=M-PM-8M-PM-5 M-QM-^DM-PM-;M-PM-0M-PM-3M-PM->M-PM-2 M-PM-4M-PM-;M-QM-^O M-PM-:M-PM->M-PM-<M-PM-0M-PM-=M-PM-4M-QM-^K tar
+	create := flag.Bool("c", false, "M-PM-!M-PM->M-PM-7M-PM-4M-PM-0M-QM-^BM-QM-^L M-PM-=M-PM->M-PM-2M-QM-^KM-PM-9 M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2")
+	extract := flag.Bool("x", false, "M-PM-^XM-PM-7M-PM-2M-PM-;M-PM-5M-QM-^GM-QM-^L M-QM-^DM-PM-0M-PM-9M-PM-;M-QM-^K M-PM-8M-PM-7 M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2M-PM-0")
+	archiveName := flag.String("f", "", "M-PM-^XM-PM-<M-QM-^O M-QM-^DM-PM-0M-PM-9M-PM-;M-PM-0 M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2M-PM-0")
+
+	flag.Parse()
+
+	// M-PM-!M-PM->M-PM-7M-PM-4M-PM-0M-PM-=M-PM-8M-PM-5 M-PM-=M-PM->M-PM-2M-PM->M-PM-3M-PM-> M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2M-PM-0
+	if *create && *archiveName != "" {
+		files := flag.Args()
+		err := createArchive(files, *archiveName)
+		if err != nil {
+			fmt.Printf("tar: %s: %v\n", *archiveName, err)
+		} else {
+			fmt.Println("tar: arhive created:", *archiveName)
+		}
+	}
+
+	// M-PM-^XM-PM-7M-PM-2M-PM-;M-PM-5M-QM-^GM-PM-5M-PM-=M-PM-8M-PM-5 M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-2 M-PM-8M-PM-7 M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2M-PM-0
+	if *extract && *archiveName != "" {
+		err := extractArchive(*archiveName)
+		if err != nil {
+			fmt.Printf("tar: %s: %v\n", *archiveName, err)
+		} else {
+			fmt.Println("tar: arhive is dearhivate:", *archiveName)
+		}
+	}
+}
+
+// M-PM-!M-PM->M-PM-7M-PM-4M-PM-0M-PM-=M-PM-8M-PM-5 M-PM-=M-PM->M-PM-2M-PM->M-PM-3M-PM-> M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2M-PM-0
+func createArchive(files []string, archiveName string) error {
+	archiveFile, err := os.Create(archiveName)
+	if err != nil {
+		return err
+	}
+	defer archiveFile.Close()
+
+	tw := tar.NewWriter(archiveFile)
+	defer tw.Close()
+
+	for _, file := range files {
+		err := filepath.Walk(file, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+
+			header, err := tar.FileInfoHeader(info, info.Name())
+			if err != nil {
+				return err
+			}
+
+			header.Name = path
+
+			if err := tw.WriteHeader(header); err != nil {
+				return err
+			}
+
+			if !info.Mode().IsDir() {
+				fileToArchive, err := os.Open(path)
+				if err != nil {
+					return err
+				}
+				defer fileToArchive.Close()
+
+				if _, err := io.Copy(tw, fileToArchive); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// M-PM-^XM-PM-7M-PM-2M-PM-;M-PM-5M-QM-^GM-PM-5M-PM-=M-PM-8M-PM-5 M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-2 M-PM-8M-PM-7 M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2M-PM-0
+func extractArchive(archiveName string) error {
+	archiveFile, err := os.Open(archiveName)
+	if err != nil {
+		return err
+	}
+	defer archiveFile.Close()
+
+	tr := tar.NewReader(archiveFile)
+
+	for {
+		header, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		fmt.Printf("tar: dearhivate... %s\n", header.Name)
+
+		targetFilePath := filepath.Join(".", header.Name)
+		if header.Typeflag == tar.TypeDir {
+			if err := os.MkdirAll(targetFilePath, 0755); err != nil {
+				return err
+			}
+			continue
+		}
+
+		// M-PM-!M-PM->M-PM-7M-PM-4M-PM-0M-PM-=M-PM-8M-PM-5 M-QM-^DM-PM-0M-PM-9M-PM-;M-PM-0 M-PM-8 M-PM-:M-PM->M-PM-?M-PM-8M-QM-^@M-PM->M-PM-2M-PM-0M-PM-=M-PM-8M-PM-5 M-PM-4M-PM-0M-PM-=M-PM-=M-QM-^KM-QM-^E
+		fileToExtract, err := os.Create(targetFilePath)
+		if err != nil {
+			return err
+		}
+		defer fileToExtract.Close()
+
+		if _, err := io.Copy(fileToExtract, tr); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+package main
+
+import (
+	"errors"
+	"flag"
+	"os"
+	"time"
+)
+
+func main() {
+	isNoCreated := flag.Bool("c", false, "M-PM-^]M-PM-5 M-QM-^AM-PM->M-PM-7M-PM-4M-PM-0M-PM-2M-PM-0M-QM-^BM-QM-^L M-QM-^DM-PM-0M-PM-9M-PM-;M-QM-^K")
+
+	flag.Parse()
+
+	files := flag.Args()
+
+	for _, fileName := range files {
+		err := os.Chtimes(fileName, time.Now(), time.Now())
+
+		if errors.Is(err, os.ErrNotExist) && *isNoCreated == false {
+			os.Create(fileName)
+		}
+
+	}
+}
+package main
+
+import (
+	"flag"
+	"fmt"
+	"syscall"
+)
+
+func main() {
+	isAll := flag.Bool("a", false, "M-PM-^RM-QM-^AM-QM-^O M-PM-8M-PM-=M-QM-^DM-PM->M-QM-^@M-PM-<M-PM-0M-QM-^FM-PM-8M-QM-^O")
+	isNName := flag.Bool("n", false, "M-PM-^XM-PM-<M-QM-^O M-QM-^OM-PM-4M-QM-^@M-PM-0")
+	isSName := flag.Bool("s", false, "M-PM-^XM-PM-<M-QM-^O M-PM-?M-PM-: M-PM-2 M-QM-^AM-PM-5M-QM-^BM-PM-8")
+	isKRelease := flag.Bool("r", false, "M-PM- M-PM-5M-PM-;M-PM-8M-PM-7 M-QM-^OM-PM-4M-QM-^@M-PM-0")
+
+	flag.Parse()
+
+	if !*isAll && !*isNName && !*isSName && !*isKRelease {
+		*isSName = true
+	}
+
+	var name syscall.Utsname
+	syscall.Uname(&name)
+
+	if *isSName || *isAll {
+		fmt.Print(bytesToString(name.Sysname[:]) + " ")
+	}
+	if *isNName || *isAll {
+		fmt.Print(bytesToString(name.Nodename[:]) + " ")
+	}
+	if *isKRelease || *isAll {
+		fmt.Print(bytesToString(name.Release[:]) + " ")
+	}
+
+	fmt.Println()
+}
+
+func bytesToString(b []int8) string {
+	var s []byte
+	for _, v := range b {
+		if v == 0 {
+			break
+		}
+		s = append(s, byte(v))
+	}
+	return string(s)
+}
+package main
+
+import (
+	"archive/zip"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	// M-PM-^^M-PM-?M-QM-^@M-PM-5M-PM-4M-PM-5M-PM-;M-QM-^OM-PM-5M-PM-< M-QM-^DM-PM-;M-PM-0M-PM-3M-PM-8
+	dFlag := flag.String("d", "", "M-PM-#M-PM-:M-PM-0M-PM-7M-PM-0M-PM-=M-PM-8M-PM-5 M-PM-:M-PM-0M-QM-^BM-PM-0M-PM-;M-PM->M-PM-3M-PM-0 M-PM-4M-PM-;M-QM-^O M-PM-8M-PM-7M-PM-2M-PM-;M-PM-5M-QM-^GM-PM-5M-PM-=M-PM-8M-QM-^O M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-2")
+	oFlag := flag.Bool("o", false, "M-PM-^_M-PM-5M-QM-^@M-PM-5M-PM-7M-PM-0M-PM-?M-PM-8M-QM-^AM-QM-^L M-QM-^AM-QM-^CM-QM-^IM-PM-5M-QM-^AM-QM-^BM-PM-2M-QM-^CM-QM-^NM-QM-^IM-PM-8M-QM-^E M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-2")
+	qFlag := flag.Bool("q", false, "M-PM-"M-PM-8M-QM-^EM-PM-8M-PM-9 M-QM-^@M-PM-5M-PM-6M-PM-8M-PM-< M-PM-1M-PM-5M-PM-7 M-PM-2M-QM-^KM-PM-2M-PM->M-PM-4M-PM-0")
+
+	flag.Parse()
+	zipFile := flag.Arg(0)
+
+	r, err := zip.OpenReader(zipFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer r.Close()
+
+	// M-PM-^_M-PM-5M-QM-^@M-PM-5M-PM-1M-PM-8M-QM-^@M-PM-0M-PM-5M-PM-< M-QM-^DM-PM-0M-PM-9M-PM-;M-QM-^K M-PM-2 M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2M-PM-5 M-PM-4M-PM-;M-QM-^O M-PM-8M-PM-7M-PM-2M-PM-;M-PM-5M-QM-^GM-PM-5M-PM-=M-PM-8M-QM-^O
+	for _, f := range r.File {
+		targetDir := *dFlag
+		if targetDir == "" {
+			targetDir, _ = os.Getwd()
+		}
+		if !filepath.IsAbs(targetDir) {
+			targetDir, _ = filepath.Abs(targetDir)
+		}
+
+		targetPath := filepath.Join(targetDir, f.Name)
+
+		if !*qFlag {
+			fmt.Println("unzip:", f.Name)
+		}
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(targetPath, os.ModePerm)
+			continue
+		}
+
+		if !*oFlag {
+			_, err := os.Stat(targetPath)
+			if err == nil {
+				var response string
+				fmt.Printf("%s is alredy exist. Overwrite? (yes/no/all): ", targetPath)
+				_, err := fmt.Scanln(&response)
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				response = strings.ToLower(strings.TrimSpace(response))
+
+				if response != "yes" && response != "y" && response != "all" {
+					continue
+				} else if response == "all" {
+					*oFlag = true
+				}
+			}
+		}
+
+		// M-PM-^ZM-PM->M-PM-?M-PM-8M-QM-^@M-QM-^CM-PM-5M-PM-< M-QM-^AM-PM->M-PM-4M-PM-5M-QM-^@M-PM-6M-PM-8M-PM-<M-PM->M-PM-5 M-QM-^DM-PM-0M-PM-9M-PM-;M-PM-0 M-PM-2 M-QM-^FM-PM-5M-PM-;M-PM-5M-PM-2M-PM->M-PM-9 M-QM-^DM-PM-0M-PM-9M-PM-;
+		fw, err := os.OpenFile(targetPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fr, err := f.Open()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		_, err = io.Copy(fw, fr)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		fw.Close()
+		fr.Close()
+	}
+}
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+)
+
+func main() {
+	linesFlag := flag.Bool("l", false, "M-PM-^^M-QM-^BM-PM->M-PM-1M-QM-^@M-PM-0M-PM-6M-PM-5M-PM-=M-PM-8M-PM-5 M-PM-:M-PM->M-PM-;M-PM-8M-QM-^GM-PM-5M-QM-^AM-QM-^BM-PM-2M-PM-0 M-QM-^AM-QM-^BM-QM-^@M-PM->M-PM-:")
+	wordsFlag := flag.Bool("w", false, "M-PM-^^M-QM-^BM-PM->M-PM-1M-QM-^@M-PM-0M-PM-6M-PM-5M-PM-=M-PM-8M-PM-5 M-PM-:M-PM->M-PM-;M-PM-8M-QM-^GM-PM-5M-QM-^AM-QM-^BM-PM-2M-PM-0 M-QM-^AM-PM-;M-PM->M-PM-2")
+	bytesFlag := flag.Bool("c", false, "M-PM-^^M-QM-^BM-PM->M-PM-1M-QM-^@M-PM-0M-PM-6M-PM-5M-PM-=M-PM-8M-PM-5 M-PM-:M-PM->M-PM-;M-PM-8M-QM-^GM-PM-5M-QM-^AM-QM-^BM-PM-2M-PM-0 M-PM-1M-PM-0M-PM-9M-QM-^B")
+
+	flag.Parse()
+
+	filename := flag.Arg(0)
+
+	if filename == "" {
+		fmt.Println("wc: enter first operand, file name")
+		return
+	}
+
+	// M-PM-^UM-QM-^AM-PM-;M-PM-8 M-PM-=M-PM-5 M-QM-^CM-PM-:M-PM-0M-PM-7M-PM-0M-PM-=M-QM-^K M-PM-:M-PM-;M-QM-^NM-QM-^GM-PM-8, M-QM-^CM-QM-^AM-QM-^BM-PM-0M-PM-=M-PM->M-PM-2M-PM-8M-PM-< M-PM-2M-QM-^AM-PM-5 M-PM-:M-PM-;M-QM-^NM-QM-^GM-PM-8 M-PM-4M-PM-;M-QM-^O M-PM-2M-QM-^KM-PM-?M-PM->M-PM-;M-PM-=M-PM-5M-PM-=M-PM-8M-QM-^O
+	if !*linesFlag && !*wordsFlag && !*bytesFlag {
+		*linesFlag, *wordsFlag, *bytesFlag = true, true, true
+	}
+
+	displayWordCount(*linesFlag, *wordsFlag, *bytesFlag, filename)
+}
+
+func displayWordCount(countLines, countWords, countBytes bool, filename string) {
+	file, err := os.Open(filename)
+	if err != nil {
+		fmt.Printf("wc: %s: %v\n", filename, err)
+		return
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineCount, wordCount, byteCount := 0, 0, 0
+
+	for scanner.Scan() {
+		lineCount++
+		words := strings.Fields(scanner.Text())
+		wordCount += len(words)
+		byteCount += len(scanner.Text()) + 1
+	}
+
+	if countLines {
+		fmt.Printf("wc: count lines: %d\n", lineCount)
+	}
+
+	if countWords {
+		fmt.Printf("wc: count words: %d\n", wordCount)
+	}
+
+	if countBytes {
+		fmt.Printf("wc: count bytes: %d\n", byteCount)
+	}
+}
+package main
+
+import (
+	"archive/zip"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+)
+
+func main() {
+	// M-PM-^^M-PM-?M-QM-^@M-PM-5M-PM-4M-PM-5M-PM-;M-QM-^OM-PM-5M-PM-< M-QM-^DM-PM-;M-PM-0M-PM-3M-PM-8
+	rFlag := flag.Bool("r", false, "M-PM- M-PM-5M-PM-:M-QM-^CM-QM-^@M-QM-^AM-PM-8M-PM-2M-PM-=M-PM->M-PM-5 M-PM-4M-PM->M-PM-1M-PM-0M-PM-2M-PM-;M-PM-5M-PM-=M-PM-8M-PM-5 M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-2 M-PM-8 M-PM-:M-PM-0M-QM-^BM-PM-0M-PM-;M-PM->M-PM-3M-PM->M-PM-2")
+	nineFlag := flag.Bool("9", false, "M-PM-^XM-QM-^AM-PM-?M-PM->M-PM-;M-QM-^LM-PM-7M-PM->M-PM-2M-PM-0M-QM-^BM-QM-^L M-PM-=M-PM-0M-PM-8M-PM-2M-QM-^KM-QM-^AM-QM-^HM-PM-8M-PM-9 M-QM-^CM-QM-^@M-PM->M-PM-2M-PM-5M-PM-=M-QM-^L M-QM-^AM-PM-6M-PM-0M-QM-^BM-PM-8M-QM-^O")
+	oFlag := flag.String("o", "output.zip", "M-PM-^XM-PM-<M-QM-^O M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2M-PM-0")
+
+	flag.Parse()
+	files := flag.Args()
+
+	// M-PM-!M-PM->M-PM-7M-PM-4M-PM-0M-PM-5M-PM-< M-PM-=M-PM->M-PM-2M-QM-^KM-PM-9 M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2
+	newZipFile, err := os.Create(*oFlag)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer newZipFile.Close()
+
+	zipWriter := zip.NewWriter(newZipFile)
+	defer zipWriter.Close()
+
+	// M-PM-^TM-PM->M-PM-1M-PM-0M-PM-2M-PM-;M-QM-^OM-PM-5M-PM-< M-QM-^DM-PM-0M-PM-9M-PM-;M-QM-^K M-PM-8M-PM-;M-PM-8 M-PM-4M-PM-8M-QM-^@M-PM-5M-PM-:M-QM-^BM-PM->M-QM-^@M-PM-8M-PM-8 M-PM-2 M-PM-0M-QM-^@M-QM-^EM-PM-8M-PM-2
+	for _, file := range files {
+		basePath := ""
+		if *rFlag {
+			fi, err := os.Stat(file)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			if fi.IsDir() {
+				basePath = file
+			}
+		}
+
+		err = addFilesToZip(file, basePath, zipWriter, *nineFlag)
+		if err != nil {
+			fmt.Printf("zip: %s: %v\n", file, err)
+			return
+		}
+	}
+
+	fmt.Println("zip: archive created:", *oFlag)
+}
+
+// M-PM-$M-QM-^CM-PM-=M-PM-:M-QM-^FM-PM-8M-QM-^O M-PM-4M-PM-;M-QM-^O M-QM-^@M-PM-5M-PM-:M-QM-^CM-QM-^@M-QM-^AM-PM-8M-PM-2M-PM-=M-PM->M-PM-3M-PM-> M-PM-4M-PM->M-PM-1M-PM-0M-PM-2M-PM-;M-PM-5M-PM-=M-PM-8M-QM-^O M-QM-^DM-PM-0M-PM-9M-PM-;M-PM->M-PM-2
+func addFilesToZip(file string, base string, zipWriter *zip.Writer, isNineZip bool) error {
+	info, err := os.Stat(file)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		files, err := os.ReadDir(file)
+		if err != nil {
+			return err
+		}
+		for _, f := range files {
+			err = addFilesToZip(filepath.Join(file, f.Name()), base, zipWriter, isNineZip)
+			if err != nil {
+				return err
+			}
+		}
+	} else {
+		fileToZip, err := os.Open(file)
+		if err != nil {
+			return err
+		}
+		defer fileToZip.Close()
+
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+		if isNineZip {
+			header.Method = zip.Deflate
+		}
+
+		if base != "" {
+			rel, err := filepath.Rel(base, file)
+			if err != nil {
+				return err
+			}
+			header.Name = filepath.ToSlash(rel)
+		}
+
+		writer, err := zipWriter.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(writer, fileToZip)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
